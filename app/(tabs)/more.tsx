@@ -158,7 +158,13 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F0F5FA' },
     scrollContent: { padding: 16, paddingBottom: 40 },
     sectionTitle: { fontSize: 15, fontWeight: '800', color: '#0B2E4F', marginTop: 24, marginBottom: 12, paddingLeft: 4 },
-    card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#E2EAF4', shadowColor: '#0B2E4F', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 2 },
+    card: {
+        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20,
+        borderWidth: 1, borderColor: '#E2EAF4',
+        // Delete the old shadowColor, offset, opacity, radius, and elevation
+        // Add this new boxShadow:
+        boxShadow: '0px 4px 12px rgba(11,46,79,0.04)',
+    } as any,
 
     // Loan Card
     loanTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },

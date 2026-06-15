@@ -1,77 +1,42 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
+import { C, T } from '@/constants/theme'; //[cite: 5]
 
 interface MetricCardProps {
-    title: string;
-    value: string;
-    subtitle: string;
-    status: 'good' | 'warning' | 'alert';
-    onPress?: () => void;
-}
+    icon: string; label: string; value: string; sub?: string; badge?: string; color?: string; onPress?: () => void;
+} //[cite: 5]
 
-export function MetricCard({ title, value, subtitle, status, onPress }: MetricCardProps) {
-    const getStatusColors = () => {
-        switch (status) {
-            case 'good': return { bg: '#ECFDF5', text: '#059669' };
-            case 'warning': return { bg: '#FFFBEB', text: '#D97706' };
-            case 'alert': return { bg: '#FEF2F2', text: '#DC2626' };
-            default: return { bg: '#F1F5F9', text: '#475569' };
-        }
-    };
-
-    const colors = getStatusColors();
+export function MetricCard({ icon, label, value, sub, badge, color = C.teal, onPress }: MetricCardProps) {
+    const scale = useRef(new Animated.Value(1)).current; //[cite: 5]
+    const onPressIn = () => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start(); //[cite: 5]
+    const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start(); //[cite: 5]
 
     return (
-        <TouchableOpacity onPress={onPress} style={styles.card} activeOpacity={0.8}>
-            <Text style={styles.title} numberOfLines={1}>{title}</Text>
-            <Text style={styles.value} numberOfLines={1}>{value}</Text>
-            <View style={[styles.badge, { backgroundColor: colors.bg }]}>
-                <Text style={[styles.badgeText, { color: colors.text }]} numberOfLines={1}>
-                    {subtitle}
-                </Text>
-            </View>
-        </TouchableOpacity>
-    );
+        <Animated.View style={[styles.wrapper, { transform: [{ scale }] }]}>
+            <TouchableOpacity activeOpacity={0.88} onPressIn={onPressIn} onPressOut={onPressOut} onPress={onPress} style={styles.card}>
+                {badge ? (
+                    <View style={[styles.badge, { backgroundColor: `${color}18` }]}><Text style={[styles.badgeText, { color }]}>{badge}</Text></View>
+                ) : <View style={styles.badgeSpacer} />}
+                <Text style={styles.icon}>{icon}</Text>
+                <Text style={[styles.value, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+                <Text style={styles.label}>{label}</Text>
+                {sub && <Text style={styles.sub} numberOfLines={1}>{sub}</Text>}
+                <View style={[styles.footer, { backgroundColor: `${color}14` }]}><Text style={[styles.footerText, { color }]}>Tap to view →</Text></View>
+            </TouchableOpacity>
+        </Animated.View>
+    ); //[cite: 5]
 }
 
 const styles = StyleSheet.create({
-    card: {
-        width: '100%', // Fills the wrapper automatically
-        backgroundColor: '#FFFFFF',
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E2EAF4',
-        // Slight shadow for depth matching the original design
-        shadowColor: '#0B2E4F',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        elevation: 2,
-    },
-    title: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#64748B',
-        marginBottom: 6,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5
-    },
-    value: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#0B2E4F',
-        marginBottom: 10,
-        letterSpacing: -0.5
-    },
-    badge: {
-        alignSelf: 'flex-start',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8
-    },
-    badgeText: {
-        fontSize: 11,
-        fontWeight: '700'
-    }
+    wrapper: { width: '48%' }, //[cite: 5]
+    card: { backgroundColor: C.surface, borderRadius: 20, paddingTop: 14, paddingHorizontal: 14, paddingBottom: 0, borderWidth: 1, borderColor: C.border, overflow: 'hidden', boxShadow: '0px 4px 12px rgba(11,46,79,0.07)' } as any, //[cite: 5]
+    badge: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 8 }, //[cite: 5]
+    badgeText: { fontSize: 10, fontWeight: '700' }, //[cite: 5]
+    badgeSpacer: { height: 22, marginBottom: 8 }, //[cite: 5]
+    icon: { fontSize: 22, lineHeight: 28, marginBottom: 8 }, //[cite: 5]
+    value: { fontSize: T.xl, fontWeight: '800', letterSpacing: -0.5 }, //[cite: 5]
+    label: { fontSize: 10, fontWeight: '700', color: C.textSub, marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5 }, //[cite: 5]
+    sub: { fontSize: 11, color: C.textMuted, marginTop: 3, marginBottom: 10 }, //[cite: 5]
+    footer: { marginHorizontal: -14, marginTop: 10, paddingVertical: 8, paddingHorizontal: 14 }, //[cite: 5]
+    footerText: { fontSize: 11, fontWeight: '700' }, //[cite: 5]
 });
