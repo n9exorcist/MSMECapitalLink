@@ -1,35 +1,26 @@
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { useAuthStore } from '../stores/useAuthStore';
 
-const queryClient = new QueryClient();
+// 1. Initialize the TanStack Query Client outside the component
+// This prevents it from being recreated every time the screen renders
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            retry: 2, // If an API call fails, retry twice before showing an error
+            staleTime: 1000 * 60 * 5, // Keep data fresh in the cache for 5 minutes
+        },
+    },
+});
 
 export default function RootLayout() {
-    const { loggedIn } = useAuthStore();
-    const segments = useSegments();
-    const router = useRouter();
-
-    // Route guarding
-    useEffect(() => {
-        const inAuthGroup = segments[0] === '(auth)';
-
-        if (!loggedIn && !inAuthGroup) {
-            // Redirect to login if not authenticated
-            router.replace('/(auth)/login');
-        } else if (loggedIn && inAuthGroup) {
-            // Redirect to tabs if authenticated and trying to access login
-            router.replace('/(tabs)');
-        }
-    }, [loggedIn, segments]);
-
     return (
+        // 2. Wrap your entire navigation stack in the Provider
         <QueryClientProvider client={queryClient}>
-            <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(auth)/login" options={{ animation: 'fade' }} />
-                <Stack.Screen name="(tabs)" options={{ animation: 'slide_from_right' }} />
+                {/* Define your root routes here so Expo knows about them */}
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
             </Stack>
         </QueryClientProvider>
     );

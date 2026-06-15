@@ -1,21 +1,33 @@
-import * as SecureStore from 'expo-secure-store';
+import axios from 'axios';
+import { storage } from './secureStore';
 
-const API_BASE_URL = 'http://127.0.0.1:8000'; // Update for production
+// Fast API backend URL (use your local IP if testing on a physical device, e.g., 192.168.x.x)
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
-export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-    const token = await SecureStore.getItemAsync('mfos_session_jwt');
-
-    const headers = {
+export const api = axios.create({
+    baseURL: API_URL,
+    headers: {
         'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...options.headers,
-    };
+    },
+});
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
-
-    if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+// Automatically inject JWT into every request
+api.interceptors.request.use(async (config) => {
+    const token = await storage.getToken();
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+});
 
-    return response.json();
-}
+// Global error handler for 401 Unauthorized (forces logout)
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            storage.removeToken();
+            // Optional: trigger global Zustand logout here if needed
+        }
+        return Promise.reject(error);
+    }
+);
