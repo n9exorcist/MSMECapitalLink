@@ -1,10 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../lib/api';
+import { useQuery, UseQueryResult } from '@tanstack/react-query'; // Import UseQueryResult
+import { api } from '../lib/api';
 
-export function useDashboardData() {
-    return useQuery({
-        queryKey: ['dashboardData'],
-        queryFn: () => apiFetch('/api/v1/msme/dashboard'),
-        refetchInterval: 1000 * 60 * 5, // Auto-refresh every 5 minutes
+// Define the return type explicitly
+export function useDashboardData(msmeId: string, requestData: any) { // Add requestData here
+    const query = useQuery({
+        queryKey: ['dashboardData', msmeId],
+        queryFn: async () => {
+            // Change .get to .post to match your @router.post decorator
+            const { data } = await api.post(`/msme/${msmeId}/dashboard`, requestData);
+            return data;
+        },
+        enabled: !!msmeId,
     });
+
+    return {
+        ...query,
+        refetch: query.refetch
+    };
 }

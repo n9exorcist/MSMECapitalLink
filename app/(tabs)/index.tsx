@@ -8,11 +8,34 @@ import { C, T, S, runwayColor } from '@/constants/theme'; //[cite: 4]
 import { useRouter } from 'expo-router'; //[cite: 4]
 
 export default function HomeDashboard() {
-    const { data: mfosData, isLoading, refetch } = useDashboardData(); //[cite: 4]
+
+    const metrics = {
+        // Existing fields
+        annual_purchases: 500000,
+        current_assets: 100000,
+        declared_bank_statement_credits: 600000,
+        projected_annual_turnover: 700000,
+
+        // Add these required missing fields
+        company_name: "Bharat Engineering",
+        ebit: 50000,
+        net_profit_after_tax: 40000,
+        depreciation: 10000,
+        interest_expense: 5000,
+        inventory: 50000,
+        sundry_debtors: 80000,
+        sundry_creditors: 40000,
+        total_outside_liabilities: 200000,
+        tangible_net_worth: 150000,
+        days_past_due: 0,
+        cibil_score: 760
+    };
+
+    const { data: mfosData, isLoading, refetch } = useDashboardData('123', metrics) as any;
     const router = useRouter(); //[cite: 4]
 
     const ownerName = mfosData?.owner ?? 'Mr. Suresh'; //[cite: 4]
-    const score = mfosData?.score ?? 78; //[cite: 4]
+    const scoreData = mfosData?.score; //[cite: 4]
     const prevScore = mfosData?.previousScore ?? 75; //[cite: 4]
     const band = mfosData?.band ?? 'GOOD'; //[cite: 4]
 
@@ -61,7 +84,11 @@ export default function HomeDashboard() {
                         <Text style={styles.scoreCardTitle}>Your Business Health</Text>
                         <View style={styles.chip}><Text style={styles.chipText}>Updated today</Text></View>
                     </View>
-                    <ScoreArc score={score} previousScore={prevScore} band={band} />
+                    <ScoreArc
+                        score={scoreData?.currentScore ?? 78}
+                        previousScore={mfosData?.previousScore ?? 75}
+                        band={scoreData?.band ?? 'GOOD'}
+                    />
                     <TouchableOpacity style={styles.scoreDetailBtn}><Text style={styles.scoreDetailText}>See full breakdown →</Text></TouchableOpacity>
                 </View>
 

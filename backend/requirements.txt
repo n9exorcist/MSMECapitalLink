@@ -1,0 +1,24 @@
+# Web Framework & Validation
+fastapi==0.111.0
+uvicorn[standard]==0.30.0
+pydantic==2.7.0
+pydantic-settings==2.2.1
+
+# Database & Auth (Replacing SQLite)
+supabase==2.4.0
+python-jose[cryptography]==3.3.0
+python-dotenv==1.0.1
+
+# AI & LangChain Ecosystem
+langchain==0.2.0
+langchain-anthropic==0.1.15
+anthropic==0.28.0
+
+# Document & Report Processing
+pdfplumber==0.11.0
+weasyprint==62.3
+python-docx==1.1.2
+openpyxl==3.1.4
+
+# Task Scheduling
+apscheduler==3.10.4

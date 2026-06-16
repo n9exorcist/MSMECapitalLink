@@ -2,7 +2,7 @@ import axios from 'axios';
 import { storage } from './secureStore';
 
 // Fast API backend URL (use your local IP if testing on a physical device, e.g., 192.168.x.x)
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_URL = 'http://localhost:8000/api/v1';
 
 export const api = axios.create({
     baseURL: API_URL,
