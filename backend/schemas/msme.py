@@ -20,6 +20,7 @@ class MSMEFinancialInflowData(BaseModel):
     
     # Balance Sheet
     current_assets: Optional[float] = 0.0
+    current_liabilities: Optional[float] = 0.0
     inventory: Optional[float] = 0.0
     sundry_debtors: Optional[float] = 0.0
     sundry_creditors: Optional[float] = 0.0

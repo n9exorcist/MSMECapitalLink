@@ -2,8 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 
-# Import our new modular routers
+# Import our modular routers
 from routers import health, dashboard
+from routers import clients, data_entry   # <-- add data_entry
 
 # Initialize FastAPI
 app = FastAPI(
@@ -11,17 +12,17 @@ app = FastAPI(
     version=settings.VERSION
 )
 
-# Set up CORS using your config settings
+# Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow everything for now to rule this out
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register the routers we just built
+# Register routers
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
-
-# (You can add ai.py or others here later!)
+app.include_router(clients.router)        # /msme/clients
+app.include_router(data_entry.router)     # /msme/{id}/entry, /financials, /debtors, /creditors, /score/refresh
