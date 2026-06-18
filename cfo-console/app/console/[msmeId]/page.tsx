@@ -74,6 +74,18 @@ const FIN_KEYS = FIN_GROUPS.flatMap((g) => g.fields.map((f) => f.key));
 
 const inputCls = 'inp w-full rounded-lg border bg-white/80 px-3 py-2.5 text-sm outline-none transition-shadow';
 const inputStyle: CSSProperties = { borderColor: C.border, color: C.text };
+
+// Button gloss as inline styles (hardcoded hex, no CSS-var/class dependency) so
+// they always render even if the stylesheet chunk is stale in dev.
+const navyBtnStyle: CSSProperties = {
+  background: 'linear-gradient(180deg, #103F6B 0%, #0B2E4F 100%)', color: '#fff',
+  boxShadow: '0 6px 16px -6px rgba(11,46,79,0.5), inset 0 1px 0 rgba(255,255,255,0.18)',
+};
+const tealBtnStyle: CSSProperties = {
+  background: 'linear-gradient(180deg, #14B8A6 0%, #0F766E 100%)', color: '#fff',
+  boxShadow: '0 6px 16px -6px rgba(15,118,110,0.55), inset 0 1px 0 rgba(255,255,255,0.25)',
+};
+const disabledBtnStyle: CSSProperties = { background: C.muted, color: '#fff' };
 const inr = (v: number | string | null | undefined) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 const toNum = (v: string) => (v.trim() === '' ? 0 : Number(v));
 
@@ -262,7 +274,7 @@ export default function ConsolePage() {
               placeholder="Paste an MSME id to load" value={manualId}
               onChange={(e) => setManualId(e.target.value)}
             />
-            <button onClick={() => load(manualId)} className="btn-navy rounded-lg px-4 py-2.5 text-sm font-semibold text-white">
+            <button onClick={() => load(manualId)} style={navyBtnStyle} className="rounded-lg px-4 py-2.5 text-sm font-semibold transition-transform active:translate-y-px">
               Load client
             </button>
           </div>
@@ -334,7 +346,8 @@ export default function ConsolePage() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
                 <button
                   onClick={onSaveFinancials} disabled={busy || !msmeId}
-                  className="btn-gloss w-full sm:w-auto rounded-xl px-6 py-3 text-sm font-bold text-white"
+                  style={busy || !msmeId ? disabledBtnStyle : tealBtnStyle}
+                  className="w-full sm:w-auto rounded-xl px-6 py-3 text-sm font-bold transition-transform active:translate-y-px disabled:cursor-not-allowed"
                 >
                   {busy ? 'Saving…' : 'Save & recompute score'}
                 </button>
@@ -365,7 +378,7 @@ export default function ConsolePage() {
                   value={newDebtor.amount_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, amount_outstanding: e.target.value })} />
                 <input className={inputCls} style={{ ...inputStyle, maxWidth: 160 }} inputMode="numeric" placeholder="Days outstanding"
                   value={newDebtor.days_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, days_outstanding: e.target.value })} />
-                <button onClick={onAddDebtor} disabled={busy} className="btn-navy w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold text-white">Add customer</button>
+                <button onClick={onAddDebtor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add customer</button>
               </AddCard>
             </section>
           )}
@@ -389,7 +402,7 @@ export default function ConsolePage() {
                   value={newCreditor.amount_due} onChange={(e) => setNewCreditor({ ...newCreditor, amount_due: e.target.value })} />
                 <input className={inputCls} style={{ ...inputStyle, maxWidth: 180 }} type="date"
                   value={newCreditor.due_date} onChange={(e) => setNewCreditor({ ...newCreditor, due_date: e.target.value })} />
-                <button onClick={onAddCreditor} disabled={busy} className="btn-navy w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold text-white">Add supplier</button>
+                <button onClick={onAddCreditor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add supplier</button>
               </AddCard>
             </section>
           )}
