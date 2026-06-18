@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Animated } from 'react-native';
+import { useRouter } from 'expo-router';
+import { notify } from '../../lib/alert';
 import { useMsmeData } from '../../hooks/useMsmeData';
 import { useDebtors } from '../../hooks/useDebtors';
 import { formatINR } from '../../lib/format';
+import { C } from '@/constants/theme';
 
 // Status is derived from days_outstanding (same buckets the UI filters on).
 type DebtorStatus = 'overdue' | 'due' | 'current';
@@ -14,21 +17,83 @@ function statusOf(days: number): DebtorStatus {
     return 'current';
 }
 
+const statusColor = (s: DebtorStatus) => (s === 'overdue' ? C.red : s === 'due' ? C.amber : C.green);
+const statusLabel = (s: DebtorStatus) => (s === 'overdue' ? 'Overdue' : s === 'due' ? 'Due soon' : 'On track');
+
+interface Row {
+    id: string;
+    name: string;
+    amount: number;
+    days: number;
+    status: DebtorStatus;
+    phone: string;
+}
+
+// ─── CUSTOMER ROW (self-animating, pressable) ─────────────────────────────────
+function DebtorRow({ d, index, onPress }: { d: Row; index: number; onPress: () => void }) {
+    const enter = useRef(new Animated.Value(0)).current;
+    const scale = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        Animated.timing(enter, { toValue: 1, duration: 360, delay: 160 + Math.min(index * 45, 300), useNativeDriver: false }).start();
+    }, []);
+
+    const color = statusColor(d.status);
+
+    return (
+        <Animated.View
+            style={{
+                opacity: enter,
+                transform: [
+                    { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+                    { scale },
+                ],
+            }}
+        >
+            <TouchableOpacity
+                activeOpacity={0.7}
+                onPressIn={() => Animated.spring(scale, { toValue: 0.98, useNativeDriver: false }).start()}
+                onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: false }).start()}
+                onPress={onPress}
+                style={styles.row}
+            >
+                <View style={[styles.avatar, { backgroundColor: color + '18' }]}>
+                    <Text style={[styles.avatarText, { color }]}>{d.name?.[0]?.toUpperCase() ?? '?'}</Text>
+                </View>
+                <View style={styles.rowInfo}>
+                    <Text style={styles.name} numberOfLines={1}>{d.name}</Text>
+                    <Text style={styles.days}>{d.days} days outstanding</Text>
+                </View>
+                <View style={styles.rowAction}>
+                    <Text style={styles.amount}>{formatINR(d.amount)}</Text>
+                    <View style={[styles.statusPill, { backgroundColor: color + '18' }]}>
+                        <Text style={[styles.statusPillText, { color }]}>{statusLabel(d.status)}</Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        </Animated.View>
+    );
+}
+
 export default function MoneyInScreen() {
+    const router = useRouter();
     const [filter, setFilter] = useState<string>('All');
     const filters = ['All', 'Overdue', 'Due Soon', 'Current'];
 
-    // Same active client the Home dashboard uses.
+    // Same active client the Home dashboard uses — live Supabase data.
     const { data: msmeEntities } = useMsmeData();
     const activeMsmeId = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0].id : null;
     const { data: debtors = [], isLoading } = useDebtors(activeMsmeId);
 
-    const rows = debtors.map((d) => ({
+    const rows: Row[] = debtors.map((d) => ({
         id: d.id,
         name: d.name,
         amount: Number(d.amount_outstanding) || 0,
         days: Number(d.days_outstanding) || 0,
         status: statusOf(Number(d.days_outstanding) || 0),
+        // ↓↓↓ ASSUMPTION: `debtors` has a `phone` column. If yours is named
+        // differently (mobile / phone_number / contact), change `d.phone` here.
+        phone: String((d as any).phone ?? ''),
     }));
     const total = rows.reduce((a, d) => a + d.amount, 0);
 
@@ -37,103 +102,145 @@ export default function MoneyInScreen() {
             : filter === 'Due Soon' ? rows.filter(d => d.status === 'due')
                 : rows.filter(d => d.status === 'current');
 
-    const getStatusColor = (s: DebtorStatus) => s === 'overdue' ? '#DC2626' : s === 'due' ? '#D97706' : '#059669';
-    const getStatusLabel = (s: DebtorStatus) => s === 'overdue' ? 'Overdue' : s === 'due' ? 'Due soon' : 'On track';
+    const openCustomer = (d: Row) =>
+        router.push({
+            pathname: '/customer-detail',
+            params: { id: d.id, name: d.name, amount: String(d.amount), days: String(d.days), status: d.status, phone: d.phone },
+        });
+
+    const onRemindAll = () =>
+        notify(
+            'Remind all customers',
+            'Sending reminders to everyone at once needs the WhatsApp Business sender (coming in Phase 2). For now, tap a customer to send them a reminder.',
+        );
+
+    // Entrance for banner + filter row (rows animate themselves).
+    const bannerIn = useRef(new Animated.Value(0)).current;
+    const filterIn = useRef(new Animated.Value(0)).current;
+    const blastScale = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        Animated.timing(bannerIn, { toValue: 1, duration: 420, delay: 0, useNativeDriver: false }).start();
+        Animated.timing(filterIn, { toValue: 1, duration: 420, delay: 90, useNativeDriver: false }).start();
+    }, []);
+
+    const rise = (v: Animated.Value) => ({
+        opacity: v,
+        transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+    });
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <SafeAreaView style={styles.safe}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-            {/* Summary Banner */}
-            <View style={styles.banner}>
-                <View>
-                    <Text style={styles.bannerLabel}>TOTAL TO COLLECT</Text>
-                    <Text style={styles.bannerValue}>{formatINR(total)}</Text>
-                    <Text style={styles.bannerSub}>from {rows.length} customer{rows.length === 1 ? '' : 's'}</Text>
-                </View>
-                <TouchableOpacity style={styles.blastBtn}>
-                    <Text style={styles.blastIcon}>💬</Text>
-                    <Text style={styles.blastText}>Remind All</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Filter Row */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-                {filters.map(f => (
-                    <TouchableOpacity
-                        key={f}
-                        onPress={() => setFilter(f)}
-                        style={[styles.filterPill, filter === f && styles.filterPillActive]}
-                    >
-                        <Text style={[styles.filterPillText, filter === f && styles.filterPillTextActive]}>{f}</Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-
-            {isLoading ? (
-                <ActivityIndicator color="#0F766E" style={{ marginTop: 40 }} />
-            ) : rows.length === 0 ? (
-                <Text style={styles.empty}>No customers yet. Add receivables from the CFO console.</Text>
-            ) : (
-                <>
-                    <Text style={styles.listCount}>{filtered.length} customer{filtered.length === 1 ? '' : 's'}</Text>
-
-                    {filtered.map((d) => (
-                        <TouchableOpacity key={d.id} style={styles.row}>
-                            <View style={[styles.avatar, { backgroundColor: getStatusColor(d.status) + '18' }]}>
-                                <Text style={[styles.avatarText, { color: getStatusColor(d.status) }]}>{d.name?.[0] ?? '?'}</Text>
-                            </View>
-                            <View style={styles.rowInfo}>
-                                <Text style={styles.name}>{d.name}</Text>
-                                <Text style={styles.days}>{d.days} days outstanding</Text>
-                            </View>
-                            <View style={styles.rowAction}>
-                                <Text style={styles.amount}>{formatINR(d.amount)}</Text>
-                                <View style={[styles.statusPill, { backgroundColor: getStatusColor(d.status) + '18' }]}>
-                                    <Text style={[styles.statusPillText, { color: getStatusColor(d.status) }]}>
-                                        {getStatusLabel(d.status)}
-                                    </Text>
-                                </View>
-                            </View>
+                {/* ── Summary banner (navy hero) ── */}
+                <Animated.View style={[styles.banner, rise(bannerIn)]}>
+                    <View style={styles.bannerGlow} />
+                    <View style={styles.bannerLeft}>
+                        <Text style={styles.bannerLabel}>TOTAL TO COLLECT</Text>
+                        <Text style={styles.bannerValue}>{formatINR(total)}</Text>
+                        <Text style={styles.bannerSub}>from {rows.length} customer{rows.length === 1 ? '' : 's'}</Text>
+                    </View>
+                    <Animated.View style={{ transform: [{ scale: blastScale }] }}>
+                        <TouchableOpacity
+                            activeOpacity={0.9}
+                            onPressIn={() => Animated.spring(blastScale, { toValue: 0.96, useNativeDriver: false }).start()}
+                            onPressOut={() => Animated.spring(blastScale, { toValue: 1, useNativeDriver: false }).start()}
+                            onPress={onRemindAll}
+                            style={styles.blastBtn}
+                        >
+                            <View style={styles.blastSheen} />
+                            <Text style={styles.blastIcon}>💬</Text>
+                            <Text style={styles.blastText}>Remind All</Text>
                         </TouchableOpacity>
-                    ))}
-                </>
-            )}
+                    </Animated.View>
+                </Animated.View>
 
-        </ScrollView>
+                {/* ── Filter pills ── */}
+                <Animated.View style={rise(filterIn)}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ alignItems: 'center' }}>
+                        {filters.map(f => (
+                            <TouchableOpacity
+                                key={f}
+                                activeOpacity={0.8}
+                                onPress={() => setFilter(f)}
+                                style={[styles.filterPill, filter === f && styles.filterPillActive]}
+                            >
+                                <Text style={[styles.filterPillText, filter === f && styles.filterPillTextActive]}>{f}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </Animated.View>
+
+                {isLoading ? (
+                    <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} />
+                ) : rows.length === 0 ? (
+                    <Text style={styles.empty}>No customers yet. Add receivables from the CFO console.</Text>
+                ) : (
+                    <>
+                        <Text style={styles.listCount}>{filtered.length} customer{filtered.length === 1 ? '' : 's'}</Text>
+                        {filtered.map((d, i) => (
+                            <DebtorRow key={d.id} d={d} index={i} onPress={() => openCustomer(d)} />
+                        ))}
+                    </>
+                )}
+
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F0F5FA' },
-    scrollContent: { padding: 16, paddingBottom: 40 },
+    safe: { flex: 1, backgroundColor: C.bg },
+    scrollContent: { padding: 16, paddingBottom: 48 },
 
-    // Banner
-    banner: { backgroundColor: '#E0F2FE', borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#BAE6FD', marginBottom: 16 },
-    bannerLabel: { fontSize: 11, fontWeight: '700', color: '#475569', letterSpacing: 0.5 },
-    bannerValue: { fontSize: 30, fontWeight: '800', color: '#0369A1', marginTop: 4 },
-    bannerSub: { fontSize: 13, color: '#475569', marginTop: 2 },
-    blastBtn: { backgroundColor: '#0284C7', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, alignItems: 'center', flexDirection: 'row', gap: 6 },
-    blastIcon: { fontSize: 16 },
-    blastText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+    // Banner (navy hero)
+    banner: {
+        backgroundColor: C.navy, borderRadius: 20, padding: 20,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 16, overflow: 'hidden', position: 'relative',
+        boxShadow: '0px 12px 28px rgba(11,46,79,0.22)',
+    } as any,
+    bannerGlow: {
+        position: 'absolute', top: -45, right: -35, width: 160, height: 160,
+        borderRadius: 80, backgroundColor: C.teal, opacity: 0.20,
+    },
+    bannerLeft: { flex: 1, paddingRight: 12 },
+    bannerLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(226,234,244,0.7)', letterSpacing: 0.5 },
+    bannerValue: { fontSize: 30, fontWeight: '800', color: C.white, marginTop: 4, letterSpacing: -0.5 },
+    bannerSub: { fontSize: 13, color: 'rgba(226,234,244,0.65)', marginTop: 2 },
+    blastBtn: {
+        backgroundColor: C.teal, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14,
+        alignItems: 'center', flexDirection: 'row', gap: 6, overflow: 'hidden', position: 'relative',
+        boxShadow: '0px 6px 16px rgba(15,118,110,0.40)',
+    } as any,
+    blastSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%', backgroundColor: 'rgba(255,255,255,0.12)' },
+    blastIcon: { fontSize: 15 },
+    blastText: { color: C.white, fontSize: 13, fontWeight: '800' },
 
     // Filters
     filterRow: { marginBottom: 16, maxHeight: 40 },
-    filterPill: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, marginRight: 8, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2EAF4' },
-    filterPillActive: { backgroundColor: '#0B2E4F', borderColor: '#0B2E4F' },
-    filterPillText: { fontSize: 13, fontWeight: '700', color: '#475569' },
-    filterPillTextActive: { color: '#FFFFFF' },
-    listCount: { fontSize: 13, fontWeight: '600', color: '#94A3B8', marginBottom: 12 },
-    empty: { fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 32 },
+    filterPill: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, marginRight: 8, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.border },
+    filterPillActive: { backgroundColor: C.navy, borderColor: C.navy },
+    filterPillText: { fontSize: 13, fontWeight: '700', color: C.textSub },
+    filterPillTextActive: { color: C.white },
+    listCount: { fontSize: 13, fontWeight: '600', color: C.textMuted, marginBottom: 12 },
+    empty: { fontSize: 14, color: C.textMuted, textAlign: 'center', marginTop: 32 },
 
-    // List Rows
-    row: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#E2EAF4' },
+    // List rows
+    row: {
+        backgroundColor: C.surface, borderRadius: 16, padding: 16,
+        flexDirection: 'row', alignItems: 'center', marginBottom: 8,
+        borderWidth: 1, borderColor: C.border,
+        boxShadow: '0px 2px 8px rgba(11,46,79,0.04)',
+    } as any,
     avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
     avatarText: { fontSize: 20, fontWeight: '800' },
     rowInfo: { flex: 1, marginLeft: 12 },
-    name: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
-    days: { fontSize: 12, color: '#64748B', marginTop: 2 },
+    name: { fontSize: 14, fontWeight: '700', color: C.text },
+    days: { fontSize: 12, color: C.textSub, marginTop: 2 },
     rowAction: { alignItems: 'flex-end' },
-    amount: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+    amount: { fontSize: 16, fontWeight: '800', color: C.text },
     statusPill: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, marginTop: 4 },
-    statusPillText: { fontSize: 10, fontWeight: '700' }
+    statusPillText: { fontSize: 10, fontWeight: '700' },
 });

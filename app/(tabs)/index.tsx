@@ -1,54 +1,89 @@
-import React from 'react';
-import { ScrollView, RefreshControl, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { ScrollView, RefreshControl, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
 import { useDashboardData } from '../../hooks/useDashboardData';
-import { ScoreArc } from '../../components/ScoreArc'; //[cite: 4]
-import { MetricCard } from '../../components/MetricCard'; //[cite: 4]
+import { ScoreArc } from '../../components/ScoreArc';
+import { MetricCard } from '../../components/MetricCard';
 import { ActionCard, ActionItem } from '../../components/ActionCard';
-import { C, T, S, runwayColor } from '@/constants/theme'; //[cite: 4]
-import { useRouter } from 'expo-router'; //[cite: 4]
+import { C, T, S, runwayColor } from '@/constants/theme';
+import { useRouter } from 'expo-router';
 import { useMsmeData } from '../../hooks/useMsmeData';
+import { useLoans } from '../../hooks/useLoans';
 import { formatINR } from '../../lib/format';
 
+// Format an ISO date for the Next EMI card.
+const fmtDate = (iso: string | null): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+// Styled loading view (replaces the bare <Text>Loading…</Text> screens).
+function Loading({ label }: { label: string }) {
+    return (
+        <SafeAreaView style={styles.center}>
+            <ActivityIndicator color={C.teal} />
+            <Text style={styles.loadingText}>{label}</Text>
+        </SafeAreaView>
+    );
+}
+
 export default function HomeDashboard() {
-    // 1. ALL HOOKS AT THE TOP
+    // 1. ALL HOOKS AT THE TOP (incl. animation hooks, before any early return).
     const { data: msmeEntities, loading: msmeLoading } = useMsmeData();
     const router = useRouter();
 
-    // Use the ID from your live database
     const activeMsmeId = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0].id : null;
     const { data: mfosData, isLoading: mfosLoading, refetch } = useDashboardData(activeMsmeId);
+    const { data: loans = [] } = useLoans(activeMsmeId); // live loan data for the Next EMI card
 
-    // 2. LOADING STATE
-    // 1. Initial Load: Wait for the entity list
-    if (msmeLoading) {
-        return <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Loading business profile...</Text></SafeAreaView>;
-    }
+    // Staggered entrance — fires once, when the dashboard data is ready.
+    const e1 = useRef(new Animated.Value(0)).current; // header
+    const e2 = useRef(new Animated.Value(0)).current; // score card
+    const e3 = useRef(new Animated.Value(0)).current; // actions
+    const e4 = useRef(new Animated.Value(0)).current; // numbers
+    const hasAnimated = useRef(false);
 
-    // 2. No Data Case
+    useEffect(() => {
+        if (mfosData && !hasAnimated.current) {
+            hasAnimated.current = true;
+            Animated.stagger(110, [
+                Animated.timing(e1, { toValue: 1, duration: 420, useNativeDriver: false }),
+                Animated.timing(e2, { toValue: 1, duration: 420, useNativeDriver: false }),
+                Animated.timing(e3, { toValue: 1, duration: 420, useNativeDriver: false }),
+                Animated.timing(e4, { toValue: 1, duration: 420, useNativeDriver: false }),
+            ]).start();
+        }
+    }, [mfosData]);
+
+    const rise = (v: Animated.Value) => ({
+        opacity: v,
+        transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+    });
+
+    // 2. LOADING / EMPTY STATES
+    if (msmeLoading) return <Loading label="Loading business profile…" />;
     if (!activeMsmeId) {
-        return <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>No MSME business found.</Text></SafeAreaView>;
+        return (
+            <SafeAreaView style={styles.center}>
+                <Text style={styles.emptyTitle}>No business found</Text>
+                <Text style={styles.loadingText}>Add your business from the CFO console to get started.</Text>
+            </SafeAreaView>
+        );
     }
+    if (mfosLoading || !mfosData) return <Loading label="Loading live dashboard…" />;
 
-    // 3. Data Loading Case
-    if (mfosLoading || !mfosData) {
-        return <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Loading live dashboard...</Text></SafeAreaView>;
-    }
+    // 3. DATA EXTRACTION
+    const entity = msmeEntities[0];
+    const companyName = entity?.company_name ?? 'Your business';
+    // Prefer the dashboard owner, fall back to the entity's owner (no stale hardcoded name).
+    const ownerName = mfosData?.owner ?? entity?.owner_name ?? 'there';
 
-    // 3. Data Extraction
-    const companyName = msmeEntities.length > 0 ? msmeEntities[0].company_name : "Loading...";
-
-    const ownerName = mfosData?.owner ?? 'Mr. Suresh';
-    const scoreData = mfosData?.score ?? {
-        currentScore: 0,
-        band: 'NEUTRAL',
-        previousScore: 0
-    };
-    // Change this line: remove 'mfosData.previousScore' if it doesn't exist in the hook return
+    const scoreData = mfosData?.score ?? { currentScore: 0, band: 'NEUTRAL', previousScore: 0 };
     const prevScore = scoreData.previousScore ?? 0;
-    // FIX THIS: Ensure you are pulling 'actions' correctly from mfosData
-    const actions = mfosData?.actions ?? [];
+    const actions: ActionItem[] = mfosData?.actions ?? [];
 
-    // This 'm' is the correct object for your metrics
+    // Live: moneyIn / moneyOut + Next EMI (from `loans`). Still MOCK: cashRunway, compliance, sales.
+    const primaryLoan = loans[0] ?? null; // largest sanctioned
     const m = mfosData?.metrics ?? {
         moneyIn: { total: 0, count: 0, overdueCount: 0 },
         moneyOut: { total: 0, count: 0, weekAmount: 0 },
@@ -61,7 +96,7 @@ export default function HomeDashboard() {
     const now = new Date();
     const hour = now.getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+    const shortDate = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -76,30 +111,29 @@ export default function HomeDashboard() {
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={mfosLoading} onRefresh={refetch} tintColor={C.teal} />}
             >
-                <View style={styles.header}>
+                <Animated.View style={[styles.header, rise(e1)]}>
                     <View style={styles.headerLeft}>
                         <View style={styles.avatarRing}>
-                            <View style={styles.avatar}><Text style={styles.avatarText}>{ownerName?.charAt(0) || 'U'}</Text></View>
+                            <View style={styles.avatar}><Text style={styles.avatarText}>{ownerName?.charAt(0)?.toUpperCase() || 'U'}</Text></View>
                             <View style={styles.onlineDot} />
                         </View>
-                        <View style={{ marginLeft: 12 }}>
-                            <Text style={styles.greeting}>{greeting}, {ownerName}</Text>
-                            <Text style={styles.dateStr}>{companyName}</Text>
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={styles.greeting} numberOfLines={1}>{greeting}, {ownerName}</Text>
+                            <Text style={styles.dateStr} numberOfLines={1}>{companyName} · {shortDate}</Text>
                         </View>
                     </View>
-                    <TouchableOpacity style={styles.notifBtn}><Text style={styles.notifEmoji}>🔔</Text></TouchableOpacity>
-                </View>
+                    <TouchableOpacity style={styles.notifBtn} activeOpacity={0.7} onPress={() => router.push('/notifications')}><Text style={styles.notifEmoji}>🔔</Text></TouchableOpacity>
+                </Animated.View>
 
-                <View style={styles.scoreCard}>
+                <Animated.View style={[styles.scoreCard, rise(e2)]}>
                     <View style={styles.scoreCardTop}>
                         <Text style={styles.scoreCardTitle}>Your Business Health</Text>
-                        <View style={styles.chip}><Text style={styles.chipText}>Live</Text></View>
                     </View>
                     <ScoreArc score={scoreData.currentScore ?? 0} previousScore={prevScore} band={scoreData.band} />
                     <TouchableOpacity style={styles.scoreDetailBtn}><Text style={styles.scoreDetailText}>See full breakdown →</Text></TouchableOpacity>
-                </View>
+                </Animated.View>
 
-                <View style={styles.section}>
+                <Animated.View style={[styles.section, rise(e3)]}>
                     <View style={styles.sectionRow}>
                         <Text style={styles.sectionTitle}>Today's Actions</Text>
                     </View>
@@ -108,54 +142,57 @@ export default function HomeDashboard() {
                     ) : (
                         <Text style={{ padding: 16, color: C.textMuted }}>No actions pending for today.</Text>
                     )}
-                </View>
+                </Animated.View>
 
-                <View style={styles.section}>
+                <Animated.View style={[styles.section, rise(e4)]}>
                     <Text style={styles.sectionTitle}>Your Numbers</Text>
                     <View style={styles.grid}>
                         <MetricCard icon="📥" label="Money to Collect" value={formatINR(m.moneyIn.total)} sub={`${m.moneyIn.count} customers`} badge={`${m.moneyIn.overdueCount} overdue`} color={C.teal} onPress={() => router.push('/(tabs)/money-in')} />
                         <MetricCard icon="📤" label="Money to Pay" value={formatINR(m.moneyOut.total)} sub={`${m.moneyOut.count} suppliers`} color={C.amber} onPress={() => router.push('/(tabs)/money-out')} />
                         <MetricCard icon="🏦" label="Cash Runway" value={`${m.cashRunway.days} days`} sub={`₹${m.cashRunway.cash}L`} color={runwayColor(m.cashRunway.days)} />
-                        {/* These three are still mock (lakh-unit) — switch to formatINR once wired to real raw-rupee data */}
-                        <MetricCard icon="🏛" label="Next EMI" value={`₹${m.nextEmi.amount}L`} sub={`${m.nextEmi.date}`} color={C.navy} />
+                        {/* Next EMI is now live from `loans`. Cash Runway / GST & Tax / Sales Trend are still mock (lakh-unit) until wired. */}
+                        <MetricCard icon="🏛️" label="Next EMI" value={primaryLoan ? formatINR(Number(primaryLoan.emi_amount) || 0) : '—'} sub={primaryLoan ? fmtDate(primaryLoan.next_due_date) : 'No loan on file'} color={C.navy} />
                         <MetricCard icon="📊" label="GST & Tax" value={m.compliance.status} sub={`${m.compliance.daysLeft}d left`} color={C.green} />
                         <MetricCard icon="📈" label="Sales Trend" value={`${m.sales.pct}%`} sub={`₹${m.sales.thisMonth}L`} color={C.green} />
                     </View>
-                </View>
+                </Animated.View>
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: C.bg }, //[cite: 4]
-    appBar: { height: 52, backgroundColor: C.bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.xl, borderBottomWidth: 1, borderBottomColor: C.border }, //[cite: 4]
-    appBarTitle: { fontSize: T.md, fontWeight: '800', color: C.navy, letterSpacing: -0.3 }, //[cite: 4]
-    liveChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.greenBg, borderWidth: 1, borderColor: `${C.green}30`, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 }, //[cite: 4]
-    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green }, //[cite: 4]
-    liveText: { fontSize: T.xs, fontWeight: '700', color: C.green }, //[cite: 4]
-    scroll: { paddingBottom: S.xl }, //[cite: 4]
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.xl, paddingTop: 18, paddingBottom: 14 }, //[cite: 4]
-    headerLeft: { flexDirection: 'row', alignItems: 'center' }, //[cite: 4]
-    avatarRing: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.teal, alignItems: 'center', justifyContent: 'center', position: 'relative' }, //[cite: 4]
-    avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' }, //[cite: 4]
-    avatarText: { color: C.white, fontSize: T.md, fontWeight: '800' }, //[cite: 4]
-    onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: C.green, borderWidth: 2, borderColor: C.bg }, //[cite: 4]
-    greeting: { fontSize: T.base, fontWeight: '800', color: C.navy }, //[cite: 4]
-    dateStr: { fontSize: T.xs, fontWeight: '500', color: C.textMuted, marginTop: 1 }, //[cite: 4]
-    notifBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, position: 'relative', boxShadow: '0px 2px 6px rgba(11,46,79,0.06)' } as any, //[cite: 4]
-    notifEmoji: { fontSize: 18, lineHeight: 22 }, //[cite: 4]
-    notifBadge: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: C.red, borderWidth: 1.5, borderColor: C.bg }, //[cite: 4]
-    scoreCard: { marginHorizontal: S.md, backgroundColor: C.surface, borderRadius: 24, padding: S.xxl, borderWidth: 1, borderColor: C.border, boxShadow: '0px 6px 18px rgba(11,46,79,0.09)' } as any, //[cite: 4]
-    scoreCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.xl }, //[cite: 4]
-    scoreCardTitle: { fontSize: T.md, fontWeight: '800', color: C.navy }, //[cite: 4]
-    chip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, backgroundColor: `${C.teal}14`, borderColor: `${C.teal}30` }, //[cite: 4]
-    chipNavy: { backgroundColor: `${C.navy}12`, borderColor: `${C.navy}25` }, //[cite: 4]
-    chipText: { fontSize: T.xs, fontWeight: '700', color: C.teal }, //[cite: 4]
-    scoreDetailBtn: { marginTop: S.md, paddingVertical: 10, alignItems: 'center' }, //[cite: 4]
-    scoreDetailText: { fontSize: T.sm, fontWeight: '700', color: C.teal }, //[cite: 4]
-    section: { marginTop: S.xxl, paddingHorizontal: S.md }, //[cite: 4]
-    sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.md }, //[cite: 4]
-    sectionTitle: { fontSize: T.md, fontWeight: '800', color: C.navy, marginBottom: S.md }, //[cite: 4]
-    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: S.md }, //[cite: 4]
+    safe: { flex: 1, backgroundColor: C.bg },
+    center: { flex: 1, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 32 },
+    loadingText: { fontSize: T.base, color: C.textSub, fontWeight: '600', textAlign: 'center' },
+    emptyTitle: { fontSize: T.lg, fontWeight: '800', color: C.navy },
+
+    appBar: { height: 52, backgroundColor: C.bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.xl, borderBottomWidth: 1, borderBottomColor: C.border },
+    appBarTitle: { fontSize: T.md, fontWeight: '800', color: C.navy, letterSpacing: -0.3 },
+    liveChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.greenBg, borderWidth: 1, borderColor: `${C.green}30`, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
+    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green },
+    liveText: { fontSize: T.xs, fontWeight: '700', color: C.green },
+    scroll: { paddingBottom: S.xl },
+
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.xl, paddingTop: 18, paddingBottom: 14 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 12 },
+    avatarRing: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.teal, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+    avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' },
+    avatarText: { color: C.white, fontSize: T.md, fontWeight: '800' },
+    onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: C.green, borderWidth: 2, borderColor: C.bg },
+    greeting: { fontSize: T.base, fontWeight: '800', color: C.navy },
+    dateStr: { fontSize: T.xs, fontWeight: '500', color: C.textMuted, marginTop: 1 },
+    notifBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, position: 'relative', boxShadow: '0px 2px 6px rgba(11,46,79,0.06)' } as any,
+    notifEmoji: { fontSize: 18, lineHeight: 22 },
+
+    scoreCard: { marginHorizontal: S.md, backgroundColor: C.surface, borderRadius: 24, padding: S.xxl, borderWidth: 1, borderColor: C.border, boxShadow: '0px 6px 18px rgba(11,46,79,0.09)' } as any,
+    scoreCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.xl },
+    scoreCardTitle: { fontSize: T.md, fontWeight: '800', color: C.navy },
+    scoreDetailBtn: { marginTop: S.md, paddingVertical: 10, alignItems: 'center' },
+    scoreDetailText: { fontSize: T.sm, fontWeight: '700', color: C.teal },
+
+    section: { marginTop: S.xxl, paddingHorizontal: S.md },
+    sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.md },
+    sectionTitle: { fontSize: T.md, fontWeight: '800', color: C.navy, marginBottom: S.md },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: S.md },
 });
