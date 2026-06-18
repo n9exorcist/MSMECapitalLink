@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #eef3fa;
+  --foreground: #0f172a;
+
+  /* Brand palette (kept in sync with the JS `C` objects in the pages) */
+  --navy: #0b2e4f;
+  --navy-2: #103f6b;
+  --teal: #0f766e;
+  --teal-2: #14b8a6;
+  --border: #e2eaf4;
 }
 
 @theme inline {
@@ -12,15 +19,101 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Soft, glossy app backdrop — radial sheens over a cool base */
+  background-color: var(--background);
+  background-image:
+    radial-gradient(1100px 520px at 12% -8%, rgba(15, 118, 110, 0.10), transparent 60%),
+    radial-gradient(1000px 600px at 100% 0%, rgba(11, 46, 79, 0.12), transparent 55%);
+  background-attachment: fixed;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Reusable gloss utilities (used by both console pages) ─────────────── */
+
+/* Frosted-glass surface */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid rgba(226, 234, 244, 0.9);
+}
+
+/* Glossy navy header / hero */
+.hero-navy {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 60%, #0d3354 100%);
+}
+
+/* Card with a soft, layered shadow + smooth hover lift */
+.card-gloss {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -12px rgba(11, 46, 79, 0.18);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.card-gloss:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 16px 40px -16px rgba(11, 46, 79, 0.28);
+}
+
+/* Subtle top sheen for stat tiles */
+.tile-sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 38%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+/* Glossy teal/navy button */
+.btn-gloss {
+  position: relative;
+  background: linear-gradient(180deg, var(--teal-2) 0%, var(--teal) 100%);
+  box-shadow: 0 6px 16px -6px rgba(15, 118, 110, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.btn-gloss:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
+.btn-gloss:active:not(:disabled) { transform: translateY(0); }
+.btn-gloss:disabled { filter: grayscale(0.4) brightness(0.95); opacity: 0.7; cursor: not-allowed; }
+
+.btn-navy {
+  background: linear-gradient(180deg, var(--navy-2) 0%, var(--navy) 100%);
+  box-shadow: 0 6px 16px -6px rgba(11, 46, 79, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.btn-navy:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+.btn-navy:active:not(:disabled) { transform: translateY(0); }
+
+/* Inputs: focus glow in brand teal */
+.inp:focus {
+  border-color: var(--teal-2);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+}
+
+/* Fade/rise entrance for content blocks */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: riseIn 0.4s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .card-gloss, .btn-gloss, .btn-navy, .rise { transition: none; animation: none; }
+  .card-gloss:hover { transform: none; }
 }
