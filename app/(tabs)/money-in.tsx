@@ -1,33 +1,41 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useMsmeData } from '../../hooks/useMsmeData';
+import { useDebtors } from '../../hooks/useDebtors';
+import { formatINR } from '../../lib/format';
 
-// Type definitions for Strict Mode
+// Status is derived from days_outstanding (same buckets the UI filters on).
 type DebtorStatus = 'overdue' | 'due' | 'current';
-
-interface Debtor {
-    id: string;
-    name: string;
-    amount: number;
-    days: number;
-    status: DebtorStatus;
+const OVERDUE_DAYS = 60;
+const DUE_SOON_DAYS = 30;
+function statusOf(days: number): DebtorStatus {
+    if (days > OVERDUE_DAYS) return 'overdue';
+    if (days >= DUE_SOON_DAYS) return 'due';
+    return 'current';
 }
 
 export default function MoneyInScreen() {
     const [filter, setFilter] = useState<string>('All');
     const filters = ['All', 'Overdue', 'Due Soon', 'Current'];
 
-    // Mock data extracted from App.jsx
-    const mockDebtors: Debtor[] = [
-        { id: '1', name: 'Sundaram & Co', amount: 2.4, days: 65, status: 'overdue' },
-        { id: '2', name: 'Kaveri Traders', amount: 3.1, days: 42, status: 'due' },
-        { id: '3', name: 'Rajan Industries', amount: 1.8, days: 28, status: 'due' },
-        { id: '4', name: 'Selva Exports', amount: 4.6, days: 15, status: 'current' },
-    ];
+    // Same active client the Home dashboard uses.
+    const { data: msmeEntities } = useMsmeData();
+    const activeMsmeId = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0].id : null;
+    const { data: debtors = [], isLoading } = useDebtors(activeMsmeId);
 
-    const filtered = filter === 'All' ? mockDebtors
-        : filter === 'Overdue' ? mockDebtors.filter(d => d.status === 'overdue')
-            : filter === 'Due Soon' ? mockDebtors.filter(d => d.status === 'due')
-                : mockDebtors.filter(d => d.status === 'current');
+    const rows = debtors.map((d) => ({
+        id: d.id,
+        name: d.name,
+        amount: Number(d.amount_outstanding) || 0,
+        days: Number(d.days_outstanding) || 0,
+        status: statusOf(Number(d.days_outstanding) || 0),
+    }));
+    const total = rows.reduce((a, d) => a + d.amount, 0);
+
+    const filtered = filter === 'All' ? rows
+        : filter === 'Overdue' ? rows.filter(d => d.status === 'overdue')
+            : filter === 'Due Soon' ? rows.filter(d => d.status === 'due')
+                : rows.filter(d => d.status === 'current');
 
     const getStatusColor = (s: DebtorStatus) => s === 'overdue' ? '#DC2626' : s === 'due' ? '#D97706' : '#059669';
     const getStatusLabel = (s: DebtorStatus) => s === 'overdue' ? 'Overdue' : s === 'due' ? 'Due soon' : 'On track';
@@ -39,8 +47,8 @@ export default function MoneyInScreen() {
             <View style={styles.banner}>
                 <View>
                     <Text style={styles.bannerLabel}>TOTAL TO COLLECT</Text>
-                    <Text style={styles.bannerValue}>₹11.9L</Text>
-                    <Text style={styles.bannerSub}>from 4 customers</Text>
+                    <Text style={styles.bannerValue}>{formatINR(total)}</Text>
+                    <Text style={styles.bannerSub}>from {rows.length} customer{rows.length === 1 ? '' : 's'}</Text>
                 </View>
                 <TouchableOpacity style={styles.blastBtn}>
                     <Text style={styles.blastIcon}>💬</Text>
@@ -61,28 +69,35 @@ export default function MoneyInScreen() {
                 ))}
             </ScrollView>
 
-            <Text style={styles.listCount}>{filtered.length} customers</Text>
+            {isLoading ? (
+                <ActivityIndicator color="#0F766E" style={{ marginTop: 40 }} />
+            ) : rows.length === 0 ? (
+                <Text style={styles.empty}>No customers yet. Add receivables from the CFO console.</Text>
+            ) : (
+                <>
+                    <Text style={styles.listCount}>{filtered.length} customer{filtered.length === 1 ? '' : 's'}</Text>
 
-            {/* Debtor List */}
-            {filtered.map((d) => (
-                <TouchableOpacity key={d.id} style={styles.row}>
-                    <View style={[styles.avatar, { backgroundColor: getStatusColor(d.status) + '18' }]}>
-                        <Text style={[styles.avatarText, { color: getStatusColor(d.status) }]}>{d.name[0]}</Text>
-                    </View>
-                    <View style={styles.rowInfo}>
-                        <Text style={styles.name}>{d.name}</Text>
-                        <Text style={styles.days}>{d.days} days outstanding</Text>
-                    </View>
-                    <View style={styles.rowAction}>
-                        <Text style={styles.amount}>₹{d.amount}L</Text>
-                        <View style={[styles.statusPill, { backgroundColor: getStatusColor(d.status) + '18' }]}>
-                            <Text style={[styles.statusPillText, { color: getStatusColor(d.status) }]}>
-                                {getStatusLabel(d.status)}
-                            </Text>
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            ))}
+                    {filtered.map((d) => (
+                        <TouchableOpacity key={d.id} style={styles.row}>
+                            <View style={[styles.avatar, { backgroundColor: getStatusColor(d.status) + '18' }]}>
+                                <Text style={[styles.avatarText, { color: getStatusColor(d.status) }]}>{d.name?.[0] ?? '?'}</Text>
+                            </View>
+                            <View style={styles.rowInfo}>
+                                <Text style={styles.name}>{d.name}</Text>
+                                <Text style={styles.days}>{d.days} days outstanding</Text>
+                            </View>
+                            <View style={styles.rowAction}>
+                                <Text style={styles.amount}>{formatINR(d.amount)}</Text>
+                                <View style={[styles.statusPill, { backgroundColor: getStatusColor(d.status) + '18' }]}>
+                                    <Text style={[styles.statusPillText, { color: getStatusColor(d.status) }]}>
+                                        {getStatusLabel(d.status)}
+                                    </Text>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    ))}
+                </>
+            )}
 
         </ScrollView>
     );
@@ -108,6 +123,7 @@ const styles = StyleSheet.create({
     filterPillText: { fontSize: 13, fontWeight: '700', color: '#475569' },
     filterPillTextActive: { color: '#FFFFFF' },
     listCount: { fontSize: 13, fontWeight: '600', color: '#94A3B8', marginBottom: 12 },
+    empty: { fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 32 },
 
     // List Rows
     row: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#E2EAF4' },

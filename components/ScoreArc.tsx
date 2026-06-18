@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
-import { C, T, bandColor as getThemeBandColor } from '@/constants/theme';
+import { C, T } from '@/constants/theme';
+import { scoreColor } from '@/lib/format';
 
 interface ScoreArcProps { score: number; previousScore: number; band: string; }
 
@@ -8,9 +9,18 @@ export function ScoreArc({ score, previousScore, band }: ScoreArcProps) {
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const barAnim = useRef(new Animated.Value(0)).current;
 
-    // Call the imported theme function to get the actual color
-    const color = getThemeBandColor(band);
+    // Colour is keyed to the NUMBER, not the band word — so a band string in the
+    // "wrong" casing can never fall through to a red default again.
+    const color = scoreColor(score);
+
     const delta = score - previousScore;
+    const deltaUp = delta > 0;
+    const deltaFlat = delta === 0;
+    const deltaColor = deltaFlat ? C.textMuted : deltaUp ? C.green : C.red;
+    const deltaBg = deltaFlat ? C.border : deltaUp ? C.greenBg : C.redBg;
+    const deltaLabel = deltaFlat
+        ? 'No change from last week'
+        : `${deltaUp ? '↑' : '↓'} ${Math.abs(delta)} from last week`;
 
     useEffect(() => {
         const loop = Animated.loop(
@@ -38,9 +48,10 @@ export function ScoreArc({ score, previousScore, band }: ScoreArcProps) {
                     </View>
                 </View>
             </Animated.View>
-            <View style={[styles.deltaBadge, { backgroundColor: delta >= 0 ? C.greenBg : C.redBg }]}>
-                <Text style={[styles.deltaText, { color: delta >= 0 ? C.green : C.red }]}>
-                    {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)} from last week
+
+            <View style={[styles.deltaBadge, { backgroundColor: deltaBg }]}>
+                <Text style={[styles.deltaText, { color: deltaColor }]}>
+                    {deltaLabel}
                 </Text>
             </View>
             <View style={styles.barTrack}>

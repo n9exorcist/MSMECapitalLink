@@ -1,23 +1,44 @@
 import React from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useMsmeData } from '../../hooks/useMsmeData';
+import { useCreditors } from '../../hooks/useCreditors';
+import { formatINR } from '../../lib/format';
 
-// Type definitions for Strict Mode
-interface Creditor {
-    id: string;
-    name: string;
-    amount: number;
-    dueDate: string;
-    urgent: boolean;
+const DAY = 86400000;
+function daysUntil(iso: string | null): number | null {
+    if (!iso) return null;
+    const ms = new Date(iso).getTime() - Date.now();
+    return Math.floor(ms / DAY);
+}
+function fmtDue(iso: string | null): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
 export default function MoneyOutScreen() {
-    // Mock data extracted from App.jsx
-    const mockCreditors: Creditor[] = [
-        { id: '1', name: 'Ramesh Steel', amount: 0.85, dueDate: '13 Jun', urgent: true },
-        { id: '2', name: 'Chennai Polymers', amount: 1.2, dueDate: '18 Jun', urgent: false },
-        { id: '3', name: 'Anand Chemicals', amount: 0.6, dueDate: '22 Jun', urgent: false },
-        { id: '4', name: 'SKF Bearings', amount: 2.1, dueDate: '30 Jun', urgent: false },
-    ];
+    const { data: msmeEntities } = useMsmeData();
+    const activeMsmeId = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0].id : null;
+    const { data: creditors = [], isLoading } = useCreditors(activeMsmeId);
+
+    const rows = creditors.map((c) => {
+        const d = daysUntil(c.due_date);
+        return {
+            id: c.id,
+            name: c.name,
+            amount: Number(c.amount_due) || 0,
+            dueDate: fmtDue(c.due_date),
+            daysLeft: d,
+            urgent: d != null && d >= 0 && d <= 3, // due within ~3 days
+        };
+    });
+
+    const total = rows.reduce((a, c) => a + c.amount, 0);
+    const dueThisWeek = rows
+        .filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= 7)
+        .reduce((a, c) => a + c.amount, 0);
+    const nextUrgent = rows.find((r) => r.urgent);
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -26,43 +47,54 @@ export default function MoneyOutScreen() {
             <View style={styles.banner}>
                 <View>
                     <Text style={styles.bannerLabel}>Total to Pay</Text>
-                    <Text style={styles.bannerValue}>₹8.6L</Text>
-                    <Text style={styles.bannerSub}>to 9 suppliers</Text>
+                    <Text style={styles.bannerValue}>{formatINR(total)}</Text>
+                    <Text style={styles.bannerSub}>to {rows.length} supplier{rows.length === 1 ? '' : 's'}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.bannerLabel}>Due this week</Text>
-                    <Text style={styles.bannerValueUrgent}>₹2.1L</Text>
+                    <Text style={styles.bannerValueUrgent}>{dueThisWeek > 0 ? formatINR(dueThisWeek) : '—'}</Text>
                 </View>
             </View>
 
-            {/* Urgent Strip Alert */}
-            <View style={styles.alertStrip}>
-                <Text style={styles.alertStripIcon}>🔴</Text>
-                <Text style={styles.alertStripText}>Ramesh Steel — ₹0.85L due Friday</Text>
-            </View>
+            {/* Urgent Strip Alert — only when something is actually due soon */}
+            {nextUrgent && (
+                <View style={styles.alertStrip}>
+                    <Text style={styles.alertStripIcon}>🔴</Text>
+                    <Text style={styles.alertStripText}>
+                        {nextUrgent.name} — {formatINR(nextUrgent.amount)} due {nextUrgent.dueDate}
+                    </Text>
+                </View>
+            )}
 
-            <Text style={styles.listCount}>All suppliers</Text>
+            {isLoading ? (
+                <ActivityIndicator color="#0F766E" style={{ marginTop: 40 }} />
+            ) : rows.length === 0 ? (
+                <Text style={styles.empty}>No suppliers yet. Add payables from the CFO console.</Text>
+            ) : (
+                <>
+                    <Text style={styles.listCount}>All suppliers</Text>
 
-            {/* Creditor List */}
-            {mockCreditors.map((c) => (
-                <TouchableOpacity key={c.id} style={styles.row} activeOpacity={0.8}>
-                    <View style={[styles.avatar, { backgroundColor: c.urgent ? '#FEF2F2' : '#F8FAFC' }]}>
-                        <Text style={[styles.avatarText, { color: c.urgent ? '#DC2626' : '#475569' }]}>
-                            {c.name[0]}
-                        </Text>
-                    </View>
-                    <View style={styles.rowInfo}>
-                        <Text style={styles.name}>{c.name}</Text>
-                        <Text style={styles.days}>Due {c.dueDate}</Text>
-                    </View>
-                    <View style={styles.rowAction}>
-                        <Text style={[styles.amount, { color: c.urgent ? '#DC2626' : '#0F172A' }]}>₹{c.amount}L</Text>
-                        <TouchableOpacity style={[styles.payBtn, { backgroundColor: c.urgent ? '#DC2626' : '#0B2E4F' }]}>
-                            <Text style={styles.payBtnText}>Pay</Text>
+                    {rows.map((c) => (
+                        <TouchableOpacity key={c.id} style={styles.row} activeOpacity={0.8}>
+                            <View style={[styles.avatar, { backgroundColor: c.urgent ? '#FEF2F2' : '#F8FAFC' }]}>
+                                <Text style={[styles.avatarText, { color: c.urgent ? '#DC2626' : '#475569' }]}>
+                                    {c.name?.[0] ?? '?'}
+                                </Text>
+                            </View>
+                            <View style={styles.rowInfo}>
+                                <Text style={styles.name}>{c.name}</Text>
+                                <Text style={styles.days}>Due {c.dueDate}</Text>
+                            </View>
+                            <View style={styles.rowAction}>
+                                <Text style={[styles.amount, { color: c.urgent ? '#DC2626' : '#0F172A' }]}>{formatINR(c.amount)}</Text>
+                                <TouchableOpacity style={[styles.payBtn, { backgroundColor: c.urgent ? '#DC2626' : '#0B2E4F' }]}>
+                                    <Text style={styles.payBtnText}>Pay</Text>
+                                </TouchableOpacity>
+                            </View>
                         </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            ))}
+                    ))}
+                </>
+            )}
 
         </ScrollView>
     );
@@ -85,6 +117,7 @@ const styles = StyleSheet.create({
     alertStripText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#DC2626' },
 
     listCount: { fontSize: 13, fontWeight: '600', color: '#94A3B8', marginTop: 10, marginBottom: 12 },
+    empty: { fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 32 },
 
     // List Rows
     row: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#E2EAF4' },

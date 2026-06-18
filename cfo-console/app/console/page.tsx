@@ -4,6 +4,10 @@
 // lists every client, click a row to open the deep dive at /console/[id].
 // Fetches GET ${NEXT_PUBLIC_API_URL}/msme/clients; falls back to demo data
 // (behind a banner) so the screen renders before the backend is wired.
+//
+// STYLING PASS: header now uses the .hero-navy utility (gradient + glow + shadow),
+// filter chips have a glossy active state, non-clickable cards use .card-static so
+// only clickable rows lift, and figures use .num (tabular). Logic is unchanged.
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -121,21 +125,15 @@ export default function DashboardPage() {
 
   return (
     <div style={{ color: C.text }} className="min-h-screen">
-      {/* Glossy sticky header */}
-      <header
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 42%),' +
-            'linear-gradient(135deg, #0B2E4F 0%, #103F6B 60%, #0D3354 100%)',
-        }}
-        className="sticky top-0 z-30 px-4 sm:px-6 py-4 shadow-lg shadow-[#0b2e4f]/30">
+      {/* Glossy sticky header (gradient + glow + shadow via .hero-navy) */}
+      <header className="hero-navy sticky top-0 z-30 px-4 sm:px-6 py-4">
         <div className="mx-auto max-w-6xl flex items-center justify-between gap-3">
           <div>
             <div style={{ color: '#fff' }} className="text-base sm:text-lg font-bold tracking-tight">Client Portfolio</div>
             <div style={{ color: '#5eead4' }} className="text-[11px] sm:text-xs font-semibold">CFO Console · triage view</div>
           </div>
           <div style={{ background: '#ffffff1a', color: '#fff' }}
-            className="hidden sm:block rounded-xl px-3 py-1.5 text-xs font-semibold backdrop-blur">
+            className="hidden sm:block rounded-xl px-3 py-1.5 text-xs font-semibold backdrop-blur num">
             {total} client{total === 1 ? '' : 's'}
           </div>
         </div>
@@ -162,18 +160,17 @@ export default function DashboardPage() {
             value={q} onChange={(e) => setQ(e.target.value)}
             placeholder="Search name or sector…"
             style={{ borderColor: C.border, color: C.text }}
-            className="inp w-full sm:max-w-xs rounded-xl border bg-white/80 px-3.5 py-2.5 text-sm outline-none transition-shadow"
+            className="inp w-full sm:max-w-xs rounded-xl border bg-white/80 px-3.5 py-2.5 text-sm outline-none"
           />
           <div className="flex flex-wrap gap-2">
             {(['all', 'A', 'B', 'C', 'D'] as const).map((b) => {
               const active = bandFilter === b;
               return (
                 <button key={b} onClick={() => setBandFilter(b)}
-                  style={{
-                    background: active ? C.navy : 'rgba(255,255,255,0.8)',
-                    color: active ? '#fff' : C.sub, borderColor: C.border,
-                  }}
-                  className={`rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all ${active ? 'shadow-md shadow-[#0b2e4f]/25' : 'hover:bg-white'}`}>
+                  style={active
+                    ? { background: 'linear-gradient(180deg,#103F6B,#0B2E4F)', color: '#fff', borderColor: 'transparent', boxShadow: '0 8px 18px -8px rgba(11,46,79,0.5), inset 0 1px 0 rgba(255,255,255,0.18)' }
+                    : { background: 'rgba(255,255,255,0.75)', color: C.sub, borderColor: C.border }}
+                  className={`rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all ${active ? 'active:translate-y-px' : 'hover:bg-white'}`}>
                   {b === 'all' ? 'All' : `Band ${b}`}
                 </button>
               );
@@ -184,24 +181,24 @@ export default function DashboardPage() {
         {/* ── Mobile: card list (tables don't fit on phones) ───────────── */}
         <div className="px-4 pb-10 space-y-3 md:hidden">
           {loading ? (
-            <div style={{ color: C.muted }} className="card-gloss rounded-2xl px-4 py-10 text-center text-sm">Loading…</div>
+            <div style={{ color: C.muted }} className="card-gloss card-static rounded-2xl px-4 py-10 text-center text-sm">Loading…</div>
           ) : view.length === 0 ? (
-            <div style={{ color: C.muted }} className="card-gloss rounded-2xl px-4 py-10 text-center text-sm">No clients match.</div>
+            <div style={{ color: C.muted }} className="card-gloss card-static rounded-2xl px-4 py-10 text-center text-sm">No clients match.</div>
           ) : view.map((r) => {
             const b = band(r.health_score);
             const d = daysAgo(r.last_update);
             const stale = d != null && d > 14;
             return (
               <button key={r.id} onClick={() => router.push(`/console/${r.id}`)}
-                className="card-gloss rounded-2xl w-full text-left px-4 py-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform">
+                className="card-gloss rounded-2xl w-full text-left px-4 py-3.5 flex items-center gap-3 active:scale-[0.99]">
                 <div className="flex-1 min-w-0">
                   <div style={{ color: C.navy }} className="font-bold truncate">{r.company}</div>
                   <div style={{ color: C.muted }} className="text-xs truncate">
                     {r.sector || '—'}{r.owner ? ` · ${r.owner}` : ''}
                   </div>
                   <div className="mt-1.5 flex items-center gap-3 text-xs">
-                    <span style={{ color: C.text }} className="font-semibold">{compactINR(r.turnover)}</span>
-                    <span style={{ color: stale ? C.red : C.muted }}>
+                    <span style={{ color: C.text }} className="font-semibold num">{compactINR(r.turnover)}</span>
+                    <span style={{ color: stale ? C.red : C.muted }} className="num">
                       {d == null ? '—' : d === 0 ? 'today' : `${d}d ago`}
                     </span>
                   </div>
@@ -217,7 +214,7 @@ export default function DashboardPage() {
 
         {/* ── Tablet / desktop: sortable table ─────────────────────────── */}
         <div className="hidden md:block px-6 pb-10">
-          <div className="card-gloss rounded-2xl overflow-hidden">
+          <div className="card-gloss card-static rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -249,13 +246,13 @@ export default function DashboardPage() {
                           {r.owner && <div style={{ color: C.muted }} className="text-xs">{r.owner}</div>}
                         </td>
                         <td className="px-4 py-3.5" style={{ color: C.sub }}>{r.sector || '—'}</td>
-                        <td className="px-4 py-3.5 text-right tabular-nums" style={{ color: C.text }}>{compactINR(r.turnover)}</td>
+                        <td className="px-4 py-3.5 text-right num" style={{ color: C.text }}>{compactINR(r.turnover)}</td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center justify-center">
                             <ScorePill score={r.health_score} b={b} />
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 text-right tabular-nums" style={{ color: stale ? C.red : C.sub }}>
+                        <td className="px-4 py-3.5 text-right num" style={{ color: stale ? C.red : C.sub }}>
                           {d == null ? '—' : d === 0 ? 'today' : `${d}d ago`}
                         </td>
                         <td className="px-4 py-3.5"><div className="flex justify-center"><RiskDot risk={r.risk} /></div></td>
@@ -275,9 +272,9 @@ export default function DashboardPage() {
 // ── module-scope components ─────────────────────────────────────────────
 function StatCard({ label, value, accent, className = '' }: { label: string; value: string; accent?: string; className?: string }) {
   return (
-    <div className={`card-gloss tile-sheen relative overflow-hidden rounded-2xl p-4 ${className}`}>
+    <div className={`card-gloss card-static tile-sheen relative overflow-hidden rounded-2xl p-4 ${className}`}>
       <div style={{ color: C.muted }} className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide">{label}</div>
-      <div style={{ color: accent || C.navy }} className="text-2xl sm:text-3xl font-extrabold mt-1 tabular-nums">{value}</div>
+      <div style={{ color: accent || C.navy }} className="text-2xl sm:text-3xl font-extrabold mt-1 num">{value}</div>
     </div>
   );
 }
@@ -285,7 +282,7 @@ function StatCard({ label, value, accent, className = '' }: { label: string; val
 function ScorePill({ score, b }: { score: number | null | undefined; b: { letter: string; color: string } }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span style={{ color: C.text }} className="font-bold tabular-nums">{score ?? '—'}</span>
+      <span style={{ color: C.text }} className="font-bold num">{score ?? '—'}</span>
       <span style={{ background: `linear-gradient(180deg, ${b.color}, ${b.color}dd)`, color: '#fff' }}
         className="rounded-md px-1.5 py-0.5 text-[11px] font-bold shadow-sm">{b.letter}</span>
     </span>

@@ -7,6 +7,7 @@ import { ActionCard, ActionItem } from '../../components/ActionCard';
 import { C, T, S, runwayColor } from '@/constants/theme'; //[cite: 4]
 import { useRouter } from 'expo-router'; //[cite: 4]
 import { useMsmeData } from '../../hooks/useMsmeData';
+import { formatINR } from '../../lib/format';
 
 export default function HomeDashboard() {
     // 1. ALL HOOKS AT THE TOP
@@ -94,7 +95,7 @@ export default function HomeDashboard() {
                         <Text style={styles.scoreCardTitle}>Your Business Health</Text>
                         <View style={styles.chip}><Text style={styles.chipText}>Live</Text></View>
                     </View>
-                    <ScoreArc score={scoreData.currentScore} previousScore={prevScore} band={scoreData.band} />
+                    <ScoreArc score={scoreData.currentScore ?? 0} previousScore={prevScore} band={scoreData.band} />
                     <TouchableOpacity style={styles.scoreDetailBtn}><Text style={styles.scoreDetailText}>See full breakdown →</Text></TouchableOpacity>
                 </View>
 
@@ -112,10 +113,10 @@ export default function HomeDashboard() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Your Numbers</Text>
                     <View style={styles.grid}>
-                        <MetricCard icon="📥" label="Money to Collect" value={`₹${m.moneyIn.total}L`} sub={`${m.moneyIn.count} customers`} badge={`${m.moneyIn.overdueCount} overdue`} color={C.teal} onPress={() => router.push('/(tabs)/money-in')} />
-                        <MetricCard icon="📤" label="Money to Pay" value={`₹${m.moneyOut.total}L`} sub={`${m.moneyOut.count} suppliers`} color={C.amber} onPress={() => router.push('/(tabs)/money-out')} />
+                        <MetricCard icon="📥" label="Money to Collect" value={formatINR(m.moneyIn.total)} sub={`${m.moneyIn.count} customers`} badge={`${m.moneyIn.overdueCount} overdue`} color={C.teal} onPress={() => router.push('/(tabs)/money-in')} />
+                        <MetricCard icon="📤" label="Money to Pay" value={formatINR(m.moneyOut.total)} sub={`${m.moneyOut.count} suppliers`} color={C.amber} onPress={() => router.push('/(tabs)/money-out')} />
                         <MetricCard icon="🏦" label="Cash Runway" value={`${m.cashRunway.days} days`} sub={`₹${m.cashRunway.cash}L`} color={runwayColor(m.cashRunway.days)} />
-                        {/* ADD THESE BACK IN */}
+                        {/* These three are still mock (lakh-unit) — switch to formatINR once wired to real raw-rupee data */}
                         <MetricCard icon="🏛" label="Next EMI" value={`₹${m.nextEmi.amount}L`} sub={`${m.nextEmi.date}`} color={C.navy} />
                         <MetricCard icon="📊" label="GST & Tax" value={m.compliance.status} sub={`${m.compliance.daysLeft}d left`} color={C.green} />
                         <MetricCard icon="📈" label="Sales Trend" value={`${m.sales.pct}%`} sub={`₹${m.sales.thisMonth}L`} color={C.green} />

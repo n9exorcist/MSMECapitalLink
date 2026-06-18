@@ -1,20 +1,27 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { C } from '@/constants/theme'; // Ensure your constants are accessible
+import { C } from '@/constants/theme';
+import { useMsmeData } from '../../hooks/useMsmeData';
 
 export default function AccountScreen() {
     const router = useRouter();
+
+    // Same entity the rest of the app reads — no more hardcoded identity.
+    const { data: msmeEntities } = useMsmeData();
+    const entity = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0] : null;
+    const name = entity?.owner_name ?? '—';
+    const company = entity?.company_name ?? '—';
 
     return (
         <ScrollView style={styles.container}>
             {/* Profile Card */}
             <View style={styles.profileCard}>
-                <Text style={styles.name}>Mr. Suresh</Text>
-                <Text style={styles.company}>Bharat Engineering</Text>
+                <Text style={styles.name}>{name}</Text>
+                <Text style={styles.company}>{company}</Text>
             </View>
 
             {/* Concierge Feature */}
-            <TouchableOpacity style={styles.cfoButton} onPress={() => console.log("Initiate CFO Consult")}>
+            <TouchableOpacity style={styles.cfoButton} onPress={() => console.log('Initiate CFO Consult')}>
                 <Text style={styles.cfoButtonText}>📞 Talk to my CFO</Text>
             </TouchableOpacity>
 

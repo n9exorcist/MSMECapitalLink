@@ -2,6 +2,11 @@
 // app/console/[msmeId]/page.tsx   (rename the file to page.tsx)
 // CFO Data Entry Console (spec §5). Banker-grade, dense, navy/teal — matches the owner app.
 // Writes through FastAPI; saving Financials recomputes the score and shows it live.
+//
+// STYLING PASS: header uses .hero-navy, score badge uses .score-chip, tabs use the
+// .tab/.tab-active utilities, form sections use .card-static (no hover lift while typing),
+// the save action is now a sticky frosted .save-bar, and the "Add" inputs go full-width
+// on mobile (caps only apply at sm+). All data flow / FastAPI logic is unchanged.
 
 import { useCallback, useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
@@ -72,7 +77,7 @@ const FIN_GROUPS: { title: string; fields: { key: string; label: string }[] }[] 
 ];
 const FIN_KEYS = FIN_GROUPS.flatMap((g) => g.fields.map((f) => f.key));
 
-const inputCls = 'inp w-full rounded-lg border bg-white/80 px-3 py-2.5 text-sm outline-none transition-shadow';
+const inputCls = 'inp w-full rounded-lg border bg-white/80 px-3 py-2.5 text-sm outline-none';
 const inputStyle: CSSProperties = { borderColor: C.border, color: C.text };
 
 // Button gloss as inline styles (hardcoded hex, no CSS-var/class dependency) so
@@ -236,14 +241,8 @@ export default function ConsolePage() {
 
   return (
     <div style={{ color: C.text }} className="min-h-screen">
-      {/* Glossy sticky top bar */}
-      <header
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 42%),' +
-            'linear-gradient(135deg, #0B2E4F 0%, #103F6B 60%, #0D3354 100%)',
-        }}
-        className="sticky top-0 z-30 px-4 sm:px-6 py-4 shadow-lg shadow-[#0b2e4f]/30">
+      {/* Glossy sticky top bar (gradient + glow + shadow via .hero-navy) */}
+      <header className="hero-navy sticky top-0 z-30 px-4 sm:px-6 py-4">
         <div className="mx-auto max-w-5xl flex items-center justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div style={{ color: '#fff' }} className="text-base sm:text-lg font-bold tracking-tight truncate">
@@ -254,9 +253,8 @@ export default function ConsolePage() {
             </div>
           </div>
           {score && (
-            <div style={{ background: '#ffffff1a', color: '#fff' }}
-              className="rounded-xl px-4 py-2 text-right backdrop-blur shadow-inner rise">
-              <div className="text-2xl font-extrabold leading-none tabular-nums">{score.score}<span className="text-sm font-semibold">/100</span></div>
+            <div className="score-chip rounded-xl px-4 py-2 text-right backdrop-blur rise" style={{ color: '#fff' }}>
+              <div className="text-2xl font-extrabold leading-none num">{score.score}<span className="text-sm font-semibold">/100</span></div>
               <div style={{ color: '#5eead4' }} className="text-[11px] font-bold uppercase tracking-wide">
                 {score.band}{score.delta != null ? ` · ${score.delta >= 0 ? '↑' : '↓'}${Math.abs(score.delta)}` : ''}
               </div>
@@ -270,7 +268,7 @@ export default function ConsolePage() {
         {!routeId && (
           <div className="glass mx-4 sm:mx-6 mt-4 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2">
             <input
-              className={inputCls} style={{ ...inputStyle, maxWidth: 360 }}
+              className={`${inputCls} sm:max-w-[360px]`} style={inputStyle}
               placeholder="Paste an MSME id to load" value={manualId}
               onChange={(e) => setManualId(e.target.value)}
             />
@@ -309,8 +307,8 @@ export default function ConsolePage() {
           {/* FINANCIALS */}
           {tab === 'financials' && (
             <section className="space-y-5 rise">
-              <div className="card-gloss rounded-2xl p-4 sm:p-5">
-                <div style={{ color: C.sub }} className="text-xs font-bold uppercase tracking-wide mb-3">Reporting period</div>
+              <div className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+                <div className="eyebrow mb-3">Reporting period</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Field label="Label (e.g. FY 2025-26)">
                     <input className={inputCls} style={inputStyle} value={period.period_label}
@@ -328,8 +326,8 @@ export default function ConsolePage() {
               </div>
 
               {FIN_GROUPS.map((g) => (
-                <div key={g.title} className="card-gloss rounded-2xl p-4 sm:p-5">
-                  <div style={{ color: C.sub }} className="text-xs font-bold uppercase tracking-wide mb-3">{g.title}</div>
+                <div key={g.title} className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+                  <div className="eyebrow mb-3">{g.title}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {g.fields.map((f) => (
                       <Field key={f.key} label={f.label}>
@@ -343,7 +341,8 @@ export default function ConsolePage() {
                 </div>
               ))}
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
+              {/* Sticky frosted action bar — stays in reach on long forms / mobile */}
+              <div className="save-bar rounded-2xl px-4 py-3 mt-1 flex flex-col sm:flex-row sm:items-center gap-3">
                 <button
                   onClick={onSaveFinancials} disabled={busy || !msmeId}
                   style={busy || !msmeId ? disabledBtnStyle : tealBtnStyle}
@@ -372,11 +371,11 @@ export default function ConsolePage() {
                 empty="No customers yet. Add the first receivable below."
               />
               <AddCard title="Add a customer (receivable)">
-                <input className={inputCls} style={{ ...inputStyle, maxWidth: 220 }} placeholder="Customer name"
+                <input className={`${inputCls} sm:max-w-[220px]`} style={inputStyle} placeholder="Customer name"
                   value={newDebtor.name} onChange={(e) => setNewDebtor({ ...newDebtor, name: e.target.value })} />
-                <input className={inputCls} style={{ ...inputStyle, maxWidth: 200 }} inputMode="numeric" placeholder="Amount outstanding (₹)"
+                <input className={`${inputCls} sm:max-w-[200px]`} style={inputStyle} inputMode="numeric" placeholder="Amount outstanding (₹)"
                   value={newDebtor.amount_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, amount_outstanding: e.target.value })} />
-                <input className={inputCls} style={{ ...inputStyle, maxWidth: 160 }} inputMode="numeric" placeholder="Days outstanding"
+                <input className={`${inputCls} sm:max-w-[160px]`} style={inputStyle} inputMode="numeric" placeholder="Days outstanding"
                   value={newDebtor.days_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, days_outstanding: e.target.value })} />
                 <button onClick={onAddDebtor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add customer</button>
               </AddCard>
@@ -396,11 +395,11 @@ export default function ConsolePage() {
                 empty="No suppliers yet. Add the first payable below."
               />
               <AddCard title="Add a supplier (payable)">
-                <input className={inputCls} style={{ ...inputStyle, maxWidth: 220 }} placeholder="Supplier name"
+                <input className={`${inputCls} sm:max-w-[220px]`} style={inputStyle} placeholder="Supplier name"
                   value={newCreditor.name} onChange={(e) => setNewCreditor({ ...newCreditor, name: e.target.value })} />
-                <input className={inputCls} style={{ ...inputStyle, maxWidth: 200 }} inputMode="numeric" placeholder="Amount due (₹)"
+                <input className={`${inputCls} sm:max-w-[200px]`} style={inputStyle} inputMode="numeric" placeholder="Amount due (₹)"
                   value={newCreditor.amount_due} onChange={(e) => setNewCreditor({ ...newCreditor, amount_due: e.target.value })} />
-                <input className={inputCls} style={{ ...inputStyle, maxWidth: 180 }} type="date"
+                <input className={`${inputCls} sm:max-w-[180px]`} style={inputStyle} type="date"
                   value={newCreditor.due_date} onChange={(e) => setNewCreditor({ ...newCreditor, due_date: e.target.value })} />
                 <button onClick={onAddCreditor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add supplier</button>
               </AddCard>
@@ -412,19 +411,17 @@ export default function ConsolePage() {
   );
 }
 
-// ── Components declared at module scope (not inside render) ──────────────────
+/* ===========================================================================
+   RECONSTRUCTED COMPONENTS  —  your paste cut off mid-`TabBtn`, so these four
+   are rebuilt from how they're called above. If your originals differ, keep
+   yours and copy only the className/style changes. Behaviour matches the usage;
+   ListCard additionally folds to stacked cards on phones (md breakpoint).
+   =========================================================================== */
+
 function TabBtn({ id, label, active, onSelect }: { id: Tab; label: string; active: Tab; onSelect: (t: Tab) => void }) {
   const isActive = active === id;
   return (
-    <button
-      onClick={() => onSelect(id)}
-      style={{
-        color: isActive ? C.navy : C.muted,
-        borderBottomColor: isActive ? C.teal : 'transparent',
-        fontWeight: isActive ? 800 : 600,
-      }}
-      className="whitespace-nowrap px-4 py-3 text-sm border-b-2 -mb-px transition-colors"
-    >
+    <button onClick={() => onSelect(id)} className={`tab ${isActive ? 'tab-active' : ''}`}>
       {label}
     </button>
   );
@@ -433,52 +430,65 @@ function TabBtn({ id, label, active, onSelect }: { id: Tab; label: string; activ
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span style={{ color: C.sub }} className="block text-xs font-semibold mb-1">{label}</span>
+      <span style={{ color: C.sub }} className="block text-xs font-semibold mb-1.5">{label}</span>
       {children}
     </label>
   );
 }
 
-function ListCard<T>({ rows, cols, empty }: {
-  rows: T[]; cols: { h: string; get: (r: T) => ReactNode; primary?: boolean }[]; empty: string;
-}) {
-  if (rows.length === 0) {
+type Col<T> = { h: string; get: (r: T) => ReactNode; primary?: boolean };
+
+function ListCard<T>({ rows, cols, empty }: { rows: T[]; cols: Col<T>[]; empty: string }) {
+  if (!rows.length) {
     return (
-      <div className="card-gloss rounded-2xl px-4 py-8 text-center" style={{ color: C.muted }}>{empty}</div>
+      <div style={{ color: C.muted }} className="card-gloss card-static rounded-2xl px-4 py-10 text-center text-sm">
+        {empty}
+      </div>
     );
   }
+  const primary = cols.find((c) => c.primary) ?? cols[0];
+  const rest = cols.filter((c) => c !== primary);
+
   return (
     <>
-      {/* Mobile: stacked cards */}
-      <div className="space-y-3 sm:hidden">
+      {/* Mobile: stacked cards (a table is unreadable on a phone) */}
+      <div className="space-y-3 md:hidden">
         {rows.map((r, i) => (
-          <div key={i} className="card-gloss rounded-2xl p-4">
-            <div style={{ color: C.navy }} className="font-bold mb-2">{cols.find((c) => c.primary)?.get(r) ?? cols[0].get(r)}</div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-              {cols.filter((c) => !c.primary).map((c) => (
-                <div key={c.h} className="flex flex-col">
-                  <dt style={{ color: C.muted }} className="text-[11px] font-semibold uppercase tracking-wide">{c.h}</dt>
-                  <dd style={{ color: C.text }} className="tabular-nums">{c.get(r)}</dd>
+          <div key={i} className="card-gloss card-static rounded-2xl px-4 py-3.5">
+            <div style={{ color: C.navy }} className="font-bold">{primary.get(r)}</div>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+              {rest.map((c) => (
+                <div key={c.h} className="flex items-center justify-between gap-2">
+                  <span style={{ color: C.muted }} className="text-xs">{c.h}</span>
+                  <span style={{ color: C.text }} className="text-sm font-semibold num">{c.get(r)}</span>
                 </div>
               ))}
-            </dl>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Tablet / desktop: table */}
-      <div className="hidden sm:block card-gloss rounded-2xl overflow-hidden">
+      <div className="hidden md:block card-gloss card-static rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'linear-gradient(180deg,#F8FAFC,#EEF3FA)', color: C.sub }}>
-                {cols.map((c) => <th key={c.h} className="text-left font-semibold px-4 py-2.5">{c.h}</th>)}
+                {cols.map((c, idx) => (
+                  <th key={c.h} className={`font-semibold px-4 py-2.5 ${idx === 0 ? 'text-left' : 'text-right'}`}>{c.h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i} style={{ borderTop: '1px solid #EEF2F8' }} className="transition-colors hover:bg-[#F5F9FE]">
-                  {cols.map((c) => <td key={c.h} className="px-4 py-3 tabular-nums" style={{ color: C.text }}>{c.get(r)}</td>)}
+                  {cols.map((c, idx) => (
+                    <td key={c.h}
+                      className={`px-4 py-3.5 ${idx === 0 ? 'text-left' : 'text-right num'}`}
+                      style={{ color: idx === 0 ? C.navy : C.text, fontWeight: idx === 0 ? 600 : 400 }}>
+                      {c.get(r)}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -491,9 +501,11 @@ function ListCard<T>({ rows, cols, empty }: {
 
 function AddCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="card-gloss rounded-2xl p-4 sm:p-5">
-      <div style={{ color: C.sub }} className="text-xs font-bold uppercase tracking-wide mb-3">{title}</div>
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">{children}</div>
+    <div className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+      <div className="eyebrow mb-3">{title}</div>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
+        {children}
+      </div>
     </div>
   );
 }
