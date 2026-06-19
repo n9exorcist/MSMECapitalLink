@@ -241,7 +241,7 @@ export default function MoreScreen() {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: C.bg },
     scroll: { padding: 16, paddingBottom: 48 },
-    screenTitle: { fontSize: 20, fontWeight: '800', color: C.navy, marginBottom: 4, letterSpacing: -0.3 },
+    screenTitle: { fontSize: 17, fontWeight: '800', color: C.navy, marginBottom: 4, letterSpacing: -0.3 },
     sectionTitle: { fontSize: 15, fontWeight: '800', color: C.navy, marginTop: 24, marginBottom: 12, paddingLeft: 4 },
     cardTitle: { marginTop: 0, marginBottom: 12, paddingLeft: 0 },
 

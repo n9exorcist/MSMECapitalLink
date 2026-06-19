@@ -133,6 +133,8 @@ export default function MoneyInScreen() {
         <SafeAreaView style={styles.safe}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
+                <Text style={styles.screenTitle}>Money In</Text>
+
                 {/* ── Summary banner (navy hero) ── */}
                 <Animated.View style={[styles.banner, rise(bannerIn)]}>
                     <View style={styles.bannerGlow} />
@@ -193,6 +195,7 @@ export default function MoneyInScreen() {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: C.bg },
     scrollContent: { padding: 16, paddingBottom: 48 },
+    screenTitle: { fontSize: 17, fontWeight: '800', color: C.navy, marginBottom: 16, letterSpacing: -0.3 },
 
     // Banner (navy hero)
     banner: {

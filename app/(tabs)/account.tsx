@@ -162,7 +162,7 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: C.bg },
     scroll: { padding: S.xl, paddingBottom: S.xxxl },
-    screenTitle: { fontSize: T.lg, fontWeight: '800', color: C.navy, marginBottom: S.lg, letterSpacing: -0.3 },
+    screenTitle: { fontSize: T.md, fontWeight: '800', color: C.navy, marginBottom: S.lg, letterSpacing: -0.3 },
 
     // Profile hero
     profileCard: {
