@@ -3,6 +3,8 @@ import { ScrollView, View, Text, StyleSheet, SafeAreaView, Animated, TouchableOp
 import { C } from '@/constants/theme';
 import { useMsmeData } from '../../hooks/useMsmeData';
 import { useLoans } from '../../hooks/useLoans';
+import { useMonthlySales } from '../../hooks/useMonthlySales';
+import { useComplianceFilings } from '../../hooks/useComplianceFilings';
 import { formatINR } from '../../lib/format';
 
 // ─── STRICT MODE TYPES ──────────────────────────────────────────────────────
@@ -10,17 +12,16 @@ type MonthStatus = '✓' | '✕' | '—';
 
 interface ComplianceItem {
     name: string;
-    due: string;
-    days: number;
+    sub: string;
     amount: string;
-    urgent: boolean;
+    state: 'urgent' | 'upcoming' | 'filed';
 }
 
 // ─── DATA / WIRING ────────────────────────────────────────────────────────────
-//   loan        → LIVE from the `loans` table (useLoans).
-//   emiHistory  → no per-payment table   → MOCK.
-//   compliance  → no filings table        → MOCK (needs CFO console data-entry).
-//   sales       → no monthly time-series  → MOCK.
+//   loan        → LIVE from `loans`              (useLoans).
+//   compliance  → LIVE from `compliance_filings` (useComplianceFilings).
+//   sales       → LIVE from `monthly_sales`      (useMonthlySales).
+//   emiHistory  → no per-payment table           → MOCK.
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const EMI_STATUS: Record<string, MonthStatus> = {
@@ -28,23 +29,22 @@ const EMI_STATUS: Record<string, MonthStatus> = {
     Jul: '✓', Aug: '✓', Sep: '✓', Oct: '✓', Nov: '✓', Dec: '—',
 };
 
-const COMPLIANCE: ComplianceItem[] = [
-    { name: 'GSTR-3B (May 2026)', due: '20 Jun', days: 5, amount: '₹3.2L', urgent: true },
-    { name: 'TDS Payment (Q1)', due: '07 Jul', days: 22, amount: '₹0.8L', urgent: false },
-    { name: 'PF Contribution', due: '15 Jul', days: 30, amount: '₹0.4L', urgent: false },
-    { name: 'ESI Payment', due: '21 Jul', days: 36, amount: '₹0.2L', urgent: false },
-];
-
-const SPARK_DATA = [12, 15, 11, 18, 14, 16, 18, 13, 17, 15, 18, 0];
-const SPARK_MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
-
 const statusColor = (s: MonthStatus) => (s === '✓' ? C.teal : s === '✕' ? C.red : C.textMuted);
 const statusBg = (s: MonthStatus) => (s === '✓' ? C.greenBg : s === '✕' ? C.redBg : C.border);
+
+const stateTint = (s: ComplianceItem['state']) => (s === 'urgent' ? C.red : s === 'filed' ? C.green : C.amber);
+const stateAmountColor = (s: ComplianceItem['state']) => (s === 'urgent' ? C.red : s === 'filed' ? C.green : C.text);
 
 const fmtDate = (iso: string | null): string => {
     if (!iso) return '—';
     const d = new Date(iso);
     return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const fmtDM = (iso: string | null): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 };
 
 // ─── COMPLIANCE ROW (self-animating, pressable) ───────────────────────────────
@@ -56,7 +56,7 @@ function ComplianceRow({ item, delay }: { item: ComplianceItem; delay: number })
         Animated.timing(enter, { toValue: 1, duration: 380, delay, useNativeDriver: false }).start();
     }, []);
 
-    const tint = item.urgent ? C.red : C.green;
+    const tint = stateTint(item.state);
 
     return (
         <Animated.View
@@ -75,29 +75,79 @@ function ComplianceRow({ item, delay }: { item: ComplianceItem; delay: number })
                 style={styles.complianceRow}
             >
                 <View style={[styles.complianceChip, { backgroundColor: `${tint}14` }]}>
-                    <Text style={styles.complianceChipText}>🧾</Text>
+                    <Text style={styles.complianceChipText}>{item.state === 'filed' ? '✅' : '🧾'}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.complianceName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.complianceDue}>Due {item.due} · {item.days} days left</Text>
+                    <Text style={styles.complianceDue}>{item.sub}</Text>
                 </View>
-                <Text style={[styles.complianceAmount, { color: item.urgent ? C.red : C.text }]}>{item.amount}</Text>
+                <Text style={[styles.complianceAmount, { color: stateAmountColor(item.state) }]}>{item.amount}</Text>
             </TouchableOpacity>
         </Animated.View>
     );
 }
 
 export default function MoreScreen() {
-    // Live loan data (same active client as the rest of the app).
+    // Live data (same active client as the rest of the app).
     const { data: msmeEntities } = useMsmeData();
     const activeMsmeId = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0].id : null;
+
     const { data: loans = [], isLoading: loansLoading } = useLoans(activeMsmeId);
+    const { data: filings = [], isLoading: filingsLoading } = useComplianceFilings(activeMsmeId);
+    const { data: salesRows = [], isLoading: salesLoading } = useMonthlySales(activeMsmeId);
+
     const loan = loans[0] ?? null; // primary = largest sanctioned
 
     const sanctioned = Number(loan?.sanctioned_amount) || 0;
     const outstanding = Number(loan?.outstanding_balance) || 0;
     const paid = Math.max(sanctioned - outstanding, 0);
     const paidPct = sanctioned > 0 ? Math.min(Math.round((paid / sanctioned) * 100), 100) : 0;
+
+    // ── Compliance: upcoming (pending) first, then recent filed history ──
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayDiff = (iso: string) => Math.ceil((new Date(iso).getTime() - today.getTime()) / 86400000);
+
+    const pendingItems: ComplianceItem[] = filings
+        .filter((f) => f.status === 'pending')
+        .sort((a, b) => a.due_date.localeCompare(b.due_date))
+        .map((f): ComplianceItem => {
+            const d = dayDiff(f.due_date);
+            return {
+                name: `${f.filing_type} · ${f.period}`,
+                sub: `Due ${fmtDM(f.due_date)} · ${d <= 0 ? 'due now' : `${d} day${d === 1 ? '' : 's'} left`}`,
+                amount: f.amount != null ? formatINR(Number(f.amount)) : '—',
+                state: d <= 7 ? 'urgent' : 'upcoming',
+            };
+        });
+
+    const filedItems: ComplianceItem[] = filings
+        .filter((f) => f.status !== 'pending')
+        .sort((a, b) => b.due_date.localeCompare(a.due_date))
+        .slice(0, 6)
+        .map((f): ComplianceItem => ({
+            name: `${f.filing_type} · ${f.period}`,
+            sub: `Filed ${fmtDM(f.filed_date)}`,
+            amount: f.amount != null ? formatINR(Number(f.amount)) : '—',
+            state: 'filed',
+        }));
+
+    const complianceItems = [...pendingItems, ...filedItems];
+
+    // ── Sales: bars scaled to the busiest month; header = latest month + MoM ──
+    const revenues = salesRows.map((r) => Number(r.revenue));
+    const maxRev = Math.max(...revenues, 1);
+    const latest = salesRows.length ? salesRows[salesRows.length - 1] : null;
+    const prev = salesRows.length > 1 ? salesRows[salesRows.length - 2] : null;
+    const latestRev = latest ? Number(latest.revenue) : 0;
+    const prevRev = prev ? Number(prev.revenue) : 0;
+    const momPct = prevRev > 0 ? Math.round(((latestRev - prevRev) / prevRev) * 100) : null;
+    const latestLabel = latest ? new Date(latest.month).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }) : '';
+    const inLakh = (n: number) => (n ? `₹${(n / 100000).toFixed(1)}L` : '—');
+    const monthLetter = (iso: string) => {
+        const d = new Date(iso);
+        return isNaN(d.getTime()) ? '?' : d.toLocaleDateString('en-IN', { month: 'short' }).charAt(0);
+    };
 
     // Section entrances + a shared "grow" value for the loan bar and sales bars.
     const s1 = useRef(new Animated.Value(0)).current; // Loans
@@ -200,37 +250,63 @@ export default function MoreScreen() {
                     </View>
                 </Animated.View>
 
-                {/* ── COMPLIANCE CALENDAR (mock) ── */}
+                {/* ── COMPLIANCE CALENDAR (live from compliance_filings) ── */}
                 <Text style={styles.sectionTitle}>Compliance Calendar</Text>
-                {COMPLIANCE.map((item, i) => (
-                    <ComplianceRow key={item.name} item={item} delay={220 + i * 70} />
-                ))}
+                {filingsLoading ? (
+                    <ActivityIndicator color={C.teal} style={{ paddingVertical: 20 }} />
+                ) : complianceItems.length === 0 ? (
+                    <View style={[styles.card, styles.emptyBox]}>
+                        <Text style={styles.emptyBoxText}>No filings on record yet.</Text>
+                    </View>
+                ) : (
+                    complianceItems.map((item, i) => (
+                        <ComplianceRow key={`${item.name}-${item.state}`} item={item} delay={220 + i * 60} />
+                    ))
+                )}
 
-                {/* ── SALES TREND (mock) ── */}
+                {/* ── SALES TREND (live from monthly_sales) ── */}
                 <Text style={styles.sectionTitle}>Sales Trend</Text>
                 <Animated.View style={[styles.card, rise(s3)]}>
-                    <View style={styles.salesHeader}>
-                        <View>
-                            <Text style={styles.metricLabel}>This month</Text>
-                            <Text style={styles.salesValue}>₹18.4L</Text>
+                    {salesLoading ? (
+                        <ActivityIndicator color={C.teal} style={{ paddingVertical: 28 }} />
+                    ) : salesRows.length === 0 ? (
+                        <View style={styles.emptyBox}>
+                            <Text style={styles.emptyBoxText}>No sales data yet.</Text>
                         </View>
-                        <View style={styles.salesBadge}><Text style={styles.salesBadgeText}>↑ 12% vs last year</Text></View>
-                    </View>
-
-                    {SPARK_DATA.map((v, i) => {
-                        const pct = v ? (v / 20) * 100 : 2;
-                        const w = grow.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${pct}%`] });
-                        const barColor = i === 11 ? C.border : i === 5 ? C.teal : C.navy + 'CC';
-                        return (
-                            <View key={i} style={styles.sparkRow}>
-                                <Text style={styles.sparkMonth}>{SPARK_MONTHS[i]}</Text>
-                                <View style={styles.sparkTrack}>
-                                    <Animated.View style={[styles.sparkFill, { width: w, backgroundColor: barColor }]} />
+                    ) : (
+                        <>
+                            <View style={styles.salesHeader}>
+                                <View>
+                                    <Text style={styles.metricLabel}>Latest · {latestLabel}</Text>
+                                    <Text style={styles.salesValue}>{inLakh(latestRev)}</Text>
                                 </View>
-                                <Text style={styles.sparkValue}>{v ? `₹${v}L` : '—'}</Text>
+                                {momPct != null && (
+                                    <View style={[styles.salesBadge, momPct < 0 && { backgroundColor: C.redBg }]}>
+                                        <Text style={[styles.salesBadgeText, momPct < 0 && { color: C.red }]}>
+                                            {momPct >= 0 ? '↑' : '↓'} {Math.abs(momPct)}% vs last month
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
-                        );
-                    })}
+
+                            {salesRows.map((r, i) => {
+                                const v = Number(r.revenue);
+                                const pct = v ? (v / maxRev) * 100 : 2;
+                                const w = grow.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${pct}%`] });
+                                const isLatest = i === salesRows.length - 1;
+                                const barColor = v === 0 ? C.border : isLatest ? C.teal : C.navy + 'CC';
+                                return (
+                                    <View key={r.id} style={styles.sparkRow}>
+                                        <Text style={styles.sparkMonth}>{monthLetter(r.month)}</Text>
+                                        <View style={styles.sparkTrack}>
+                                            <Animated.View style={[styles.sparkFill, { width: w, backgroundColor: barColor }]} />
+                                        </View>
+                                        <Text style={styles.sparkValue}>{inLakh(v)}</Text>
+                                    </View>
+                                );
+                            })}
+                        </>
+                    )}
                 </Animated.View>
             </ScrollView>
         </SafeAreaView>
@@ -295,6 +371,10 @@ const styles = StyleSheet.create({
     complianceName: { fontSize: 13, fontWeight: '700', color: C.text },
     complianceDue: { fontSize: 11, color: C.textMuted, marginTop: 2 },
     complianceAmount: { fontSize: 13, fontWeight: '800' },
+
+    // Shared empty state
+    emptyBox: { paddingVertical: 22, alignItems: 'center' },
+    emptyBoxText: { fontSize: 13, color: C.textMuted, fontWeight: '600' },
 
     // Sales trend
     salesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

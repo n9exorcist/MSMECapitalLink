@@ -1,6 +1,4 @@
 # backend/routers/clients.py
-# The multi-client list the dashboard (/console) reads. Mounted at root in
-# main.py, so its path is /msme/clients.
 
 from fastapi import APIRouter, Depends
 from core.database import get_db
@@ -20,4 +18,9 @@ def list_clients(db=Depends(get_db)):
         "health_score": r.get("health_score"),
         "band": r.get("band"),
         "last_update": r.get("score_updated_at") or r.get("updated_at") or r.get("created_at"),
+        "risk": (                                          # ← ADD THIS
+            "red"    if (r.get("health_score") or 0) < 40
+            else "yellow" if (r.get("health_score") or 0) < 70
+            else "none"
+        ),
     } for r in rows]}
