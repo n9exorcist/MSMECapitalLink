@@ -1,0 +1,4 @@
+# pyproject.toml (at project root, next to package.json or wherever Vercel runs)
+
+[tool.vercel]
+entrypoint = "backend.main:app"
