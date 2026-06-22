@@ -18,7 +18,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000", 
-        "https://msmecapitallink-production.up.railway.app" # Replace with your actual Railway frontend URL
+        "https://profound-fascination-production-5de2.up.railway.app" # Your Railway frontend domain
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -33,8 +33,7 @@ def root():
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 
-# Register clients router ONCE with the /msme prefix
-# Ensure your routers/clients.py has @router.get("/clients")
-app.include_router(clients.router, prefix="/msme")
-
-app.include_router(data_entry.router, prefix="/msme") # Added prefix for consistency
+# Because your router files ALREADY HAVE prefix="/msme" defined inside them:
+# You must include them WITHOUT an additional prefix here.
+app.include_router(clients.router) 
+app.include_router(data_entry.router)
