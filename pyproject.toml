@@ -10,6 +10,3 @@ dependencies = [
     "python-dotenv>=1.0",
     "uvicorn>=0.24.0",
 ]
-
-[tool.vercel]
-entrypoint = "backend.main:app"
