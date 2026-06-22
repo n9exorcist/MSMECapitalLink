@@ -1,5 +1,7 @@
+# pyproject.toml — at repo root, NOT inside backend/
+
 [project]
-name = "msme-backend"
+name = "msme-capital-link"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
@@ -12,4 +14,4 @@ dependencies = [
 ]
 
 [tool.vercel]
-entrypoint = "main:app"
+entrypoint = "backend.main:app"
