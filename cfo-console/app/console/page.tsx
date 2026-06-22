@@ -79,14 +79,29 @@ export default function DashboardPage() {
     async function run() {
       try {
         if (!API) throw new Error('no api url');
-        const res = await fetch(`${API}/msme/clients`);
+
+        // Sanitize API URL to remove any trailing slash
+        const baseUrl = API.replace(/\/+$/, '');
+
+        // Construct the full URL without double slashes
+        const res = await fetch(`${baseUrl}/msme/clients`);
+
         if (!res.ok) throw new Error(`status ${res.status}`);
+
         const data = await res.json();
         const list: ClientRow[] = Array.isArray(data) ? data : (data.clients || []);
+
         if (ignore) return;
-        if (list.length === 0) { setRows(DEMO_CLIENTS); setIsDemo(true); }
-        else { setRows(list); setIsDemo(false); }
-      } catch {
+
+        if (list.length === 0) {
+          setRows(DEMO_CLIENTS);
+          setIsDemo(true);
+        } else {
+          setRows(list);
+          setIsDemo(false);
+        }
+      } catch (err) {
+        console.error("Fetch error:", err); // Useful for debugging
         if (ignore) return;
         setRows(DEMO_CLIENTS);
         setIsDemo(true);
@@ -96,7 +111,7 @@ export default function DashboardPage() {
     }
     run();
     return () => { ignore = true; };
-  }, []);
+  }, [API]); // Added API to dependency array
 
   const view = useMemo(() => {
     let r = rows;
