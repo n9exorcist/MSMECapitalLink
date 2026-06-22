@@ -16,7 +16,10 @@ app = FastAPI(
 # Set up CORS - MUST be explicit origin when allow_credentials=True
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000", 
+        "https://msmecapitallink-production.up.railway.app" # Replace with your actual Railway frontend URL
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,5 +32,9 @@ def root():
 # Register routers
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
-app.include_router(clients.router)        # /msme/clients
-app.include_router(data_entry.router)     # /msme/{id}/entry, /financials, etc.
+
+# Register clients router ONCE with the /msme prefix
+# Ensure your routers/clients.py has @router.get("/clients")
+app.include_router(clients.router, prefix="/msme")
+
+app.include_router(data_entry.router, prefix="/msme") # Added prefix for consistency
