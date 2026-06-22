@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
+from core.database import get_db  # <-- Import from here
 
 # Import our modular routers
 from routers import health, dashboard
-from routers import clients, data_entry   # <-- add data_entry
+from routers import clients, data_entry
 
 # Initialize FastAPI
 app = FastAPI(
@@ -12,10 +13,10 @@ app = FastAPI(
     version=settings.VERSION
 )
 
-# Set up CORS
+# Set up CORS - MUST be explicit origin when allow_credentials=True
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,4 +26,4 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(clients.router)        # /msme/clients
-app.include_router(data_entry.router)     # /msme/{id}/entry, /financials, /debtors, /creditors, /score/refresh
+app.include_router(data_entry.router)     # /msme/{id}/entry, /financials, etc.

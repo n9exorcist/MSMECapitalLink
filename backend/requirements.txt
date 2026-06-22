@@ -1,13 +1,10 @@
 # Web Framework & Validation
 fastapi==0.111.0
 uvicorn[standard]==0.30.0
-pydantic==2.7.0
+pydantic==2.7.4
 pydantic-settings==2.2.1
 
 # Database & Auth
-# supabase 2.9.1 + gotrue 2.9.1 resolved the httpx 'proxy' kwarg breakage.
-# Do NOT downgrade supabase below 2.9.0 — older versions pin gotrue<2.5
-# which passes proxy= to httpx.Client, crashing on httpx>=0.25.
 supabase==2.9.1
 gotrue==2.9.1
 httpx>=0.25.0,<0.28.0
@@ -15,7 +12,6 @@ python-jose[cryptography]==3.3.0
 python-dotenv==1.0.1
 
 # AI & LangChain Ecosystem
-# langchain-anthropic 0.1.15 requires anthropic>=0.28; 0.31 is stable.
 langchain==0.2.16
 langchain-anthropic==0.1.23
 langchain-core==0.2.43
@@ -25,9 +21,6 @@ anthropic==0.31.0
 pdfplumber==0.11.0
 python-docx==1.1.2
 openpyxl==3.1.4
-# weasyprint has heavy system deps (Pango, Cairo) — only include if you
-# are actively generating PDFs. Comment out if not needed yet.
-# weasyprint==62.3
 
 # Task Scheduling
 apscheduler==3.10.4

@@ -23,26 +23,35 @@ Three apps share one FastAPI backend and one Supabase Postgres database:
 **Owner app (repo root):**
 
 ```bash
+PS C:\Users\narayanan.selvaraj\MSMECapitalLink> npx expo start
 npm start            # expo start (dev server / Metro)
 npm run android      # expo start --android
 npm run ios          # expo start --ios
 npm run web          # expo start --web (localhost:8081)
+http://localhost:8081/login
 ```
 
 **CFO console (`cfo-console/`):**
 
 ```bash
+PS C:\Users\narayanan.selvaraj\MSMECapitalLink> cd .\cfo-console\
+PS C:\Users\narayanan.selvaraj\MSMECapitalLink\cfo-console> npm run dev
 npm run dev          # next dev (localhost:3000)
 npm run build        # next build
 npm run lint         # eslint
+http://localhost:3000/console
 ```
 
 **Backend (`backend/`):**
 
 ```bash
+ C:\Users\narayanan.selvaraj\MSMECapitalLink\backend> .\.venv\Scripts\Activate.ps1
 uvicorn main:app --reload --port 8000          # dev server; run from backend/ so `main:app` and PYTHONPATH resolve
 pip install -r requirements.txt
 docker build -t mfos-api . && docker run -p 8000:8000 mfos-api
+netstat -ano | findstr :8000
+taskkill /PID 31428 /F
+uvicorn main:app --reload --port 8000
 ```
 
 There is no test suite, linter config, or type-check script for the backend yet. (A legacy `backend/msme_capital_link.db` SQLite file is still in the tree from before the Supabase migration — it is unused; the app is fully on Supabase.)

@@ -15,7 +15,6 @@ from services import score_service
 
 router = APIRouter(prefix="/msme", tags=["cfo-data-entry"])
 
-
 class FinancialsIn(BaseModel):
     period_label: Optional[str] = None
     period_year: Optional[int] = None
@@ -67,6 +66,7 @@ def get_entry(msme_id: str, db=Depends(get_db)):
     creditors = (db.table("creditors").select("*").eq("msme_id", msme_id)
                  .order("amount_due", desc=True).execute().data or [])
     return {
+
         "company": ent.get("company_name") or ent.get("name"),
         "owner": ent.get("owner_name") or ent.get("owner"),
         "financials": fin[0] if fin else None,

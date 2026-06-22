@@ -25,9 +25,27 @@ def _client() -> Client:
             "Supabase not configured. Set SUPABASE_URL and "
             "SUPABASE_SERVICE_ROLE_KEY in backend/.env"
         )
-    # http2=False prevents "Server disconnected" on connection reuse
-    options = ClientOptions(http2=False)
-    return create_client(_URL, _KEY, options)
+    
+    # Force HTTP/2 off globally before creating any httpx clients
+    import httpx
+    # Monkey-patch: disable HTTP/2 by default in httpx
+    original_client_init = httpx.Client.__init__
+    
+    def patched_init(self, *args, **kwargs):
+        kwargs['http2'] = False
+        kwargs.setdefault('timeout', 30.0)
+        original_client_init(self, *args, **kwargs)
+    
+    httpx.Client.__init__ = patched_init
+    
+    options = ClientOptions(
+        schema="public",
+        headers={"X-Client-Info": "supabase-py/2.0"},
+        auto_refresh_token=False,
+        persist_session=False,
+    )
+    
+    return create_client(_URL, _KEY, options=options)
 
 
 def get_db() -> Client:
