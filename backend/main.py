@@ -18,7 +18,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000", 
-        "https://profound-fascination-production-5de2.up.railway.app" # Your Railway frontend domain
+        "https://msmecapitallink-production.up.railway.app" # Your Railway frontend domain
     ],
     allow_credentials=True,
     allow_methods=["*"],
