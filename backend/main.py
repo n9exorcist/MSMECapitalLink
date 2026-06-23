@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.database import get_db  # <-- Import from here
+from routers import client360 
 
 # Import our modular routers
 from routers import health, dashboard
@@ -37,3 +38,4 @@ app.include_router(dashboard.router, prefix="/api/v1")
 # You must include them WITHOUT an additional prefix here.
 app.include_router(clients.router) 
 app.include_router(data_entry.router)
+app.include_router(client360.router)
