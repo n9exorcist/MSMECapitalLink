@@ -1,12 +1,9 @@
 'use client';
-// app/console/[msmeId]/page.tsx   (rename the file to page.tsx)
-// CFO Data Entry Console (spec §5). Banker-grade, dense, navy/teal — matches the owner app.
+// app/console/[msmeId]/page.tsx
+// CFO Data Entry Console (spec §5) + live Client 360 "Overview" tab.
 // Writes through FastAPI; saving Financials recomputes the score and shows it live.
-//
-// STYLING PASS: header uses .hero-navy, score badge uses .score-chip, tabs use the
-// .tab/.tab-active utilities, form sections use .card-static (no hover lift while typing),
-// the save action is now a sticky frosted .save-bar, and the "Add" inputs go full-width
-// on mobile (caps only apply at sm+). All data flow / FastAPI logic is unchanged.
+// Overview renders <Client360Live> full-bleed (it has its own header/rail and must
+// sit OUTSIDE max-w-5xl, or it collapses into its own mobile layout on desktop).
 
 import { useCallback, useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
@@ -14,6 +11,7 @@ import { useParams } from 'next/navigation';
 // Relative import works with no tsconfig change. If you set up the "@/*" alias
 // to point at ./app/*, you can use: import { ... } from '@/lib/api';
 import { getEntry, saveFinancials, saveDebtor, saveCreditor } from '../../lib/api';
+import Client360Live from '../Client360Live';
 
 const C = {
   navy: '#0B2E4F', teal: '#0F766E', bg: '#F0F5FA', surface: '#FFFFFF',
@@ -21,9 +19,8 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'financials' | 'debtors' | 'creditors';
+type Tab = 'overview' | 'financials' | 'debtors' | 'creditors';
 type Msg = { kind: 'ok' | 'err'; text: string };
-type ScoreState = { score: number; band: string; delta: number | null };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
 interface Creditor { id?: string; name: string; amount_due?: number; due_date?: string }
@@ -103,9 +100,7 @@ export default function ConsolePage() {
   const [manualId, setManualId] = useState('');
   const msmeId = routeId || manualId;
 
-  const [tab, setTab] = useState<Tab>('financials');
-  const [company, setCompany] = useState<string | null>(null);
-  const [owner, setOwner] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>('overview');
 
   const [fin, setFin] = useState<Record<string, string>>(() =>
     Object.fromEntries(FIN_KEYS.map((k) => [k, ''])));
@@ -120,15 +115,13 @@ export default function ConsolePage() {
 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
-  const [score, setScore] = useState<ScoreState | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // bump to re-fetch the live Client 360 header/dashboard
 
   const load = useCallback(async (id: string) => {
     if (!id) return;
     try {
       const d = await getEntry(id);
       setMsg(null); // after await — not a synchronous setState in the effect
-      setCompany(d.company);
-      setOwner(d.owner);
       setDebtors(d.debtors || []);
       setCreditors(d.creditors || []);
       const f = d.financials;
@@ -157,8 +150,6 @@ export default function ConsolePage() {
         const d = await getEntry(routeId);
         if (ignore) return;
         setMsg(null);
-        setCompany(d.company);
-        setOwner(d.owner);
         setDebtors(d.debtors || []);
         setCreditors(d.creditors || []);
         const f = d.financials;
@@ -190,7 +181,7 @@ export default function ConsolePage() {
       };
       const res = await saveFinancials(msmeId, body);
       const s = res.score;
-      setScore({ score: s.score, band: s.band, delta: s.delta });
+      setRefreshKey((k) => k + 1); // re-fetch the live header so it reflects the new score
       setMsg({ kind: 'ok', text: `Saved. Score recomputed: ${s.score}/100 (${s.band}).` });
     } catch (e) {
       setMsg({ kind: 'err', text: `Save failed: ${(e as Error).message}` });
@@ -239,183 +230,170 @@ export default function ConsolePage() {
     }
   }
 
+  const tabsStrip = (
+    <div className="glass mx-4 sm:mx-6 mt-4 rounded-xl px-2 overflow-x-auto">
+      <div className="flex min-w-max">
+        <TabBtn id="overview" label="Overview" active={tab} onSelect={setTab} />
+        <TabBtn id="financials" label="Financials" active={tab} onSelect={setTab} />
+        <TabBtn id="debtors" label={`Money In (${debtors.length})`} active={tab} onSelect={setTab} />
+        <TabBtn id="creditors" label={`Money Out (${creditors.length})`} active={tab} onSelect={setTab} />
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ color: C.text }} className="min-h-screen">
-      {/* Glossy sticky top bar (gradient + glow + shadow via .hero-navy) */}
-      <header className="hero-navy sticky top-0 z-30 px-4 sm:px-6 py-4">
-        <div className="mx-auto max-w-5xl flex items-center justify-between gap-4 flex-wrap">
-          <div className="min-w-0">
-            <div style={{ color: '#fff' }} className="text-base sm:text-lg font-bold tracking-tight truncate">
-              {company || 'CFO Data Entry Console'}
-            </div>
-            <div style={{ color: '#5eead4' }} className="text-[11px] sm:text-xs font-semibold truncate">
-              {owner ? `${owner} · ` : ''}{msmeId ? `MSME ${msmeId.slice(0, 8)}…` : 'No client selected'}
-            </div>
-          </div>
-          {score && (
-            <div className="score-chip rounded-xl px-4 py-2 text-right backdrop-blur rise" style={{ color: '#fff' }}>
-              <div className="text-2xl font-extrabold leading-none num">{score.score}<span className="text-sm font-semibold">/100</span></div>
-              <div style={{ color: '#5eead4' }} className="text-[11px] font-bold uppercase tracking-wide">
-                {score.band}{score.delta != null ? ` · ${score.delta >= 0 ? '↑' : '↓'}${Math.abs(score.delta)}` : ''}
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
+      {/* OVERVIEW — Client 360 renders: blue header → tabs (belowHeader) → its body */}
+      {tab === 'overview' && <Client360Live msmeId={msmeId} belowHeader={tabsStrip} refreshKey={refreshKey} />}
 
-      <div className="mx-auto max-w-5xl">
-        {/* Client id helper (until the multi-client picker exists) */}
-        {!routeId && (
-          <div className="glass mx-4 sm:mx-6 mt-4 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2">
-            <input
-              className={`${inputCls} sm:max-w-[360px]`} style={inputStyle}
-              placeholder="Paste an MSME id to load" value={manualId}
-              onChange={(e) => setManualId(e.target.value)}
-            />
-            <button onClick={() => load(manualId)} style={navyBtnStyle} className="rounded-lg px-4 py-2.5 text-sm font-semibold transition-transform active:translate-y-px">
-              Load client
-            </button>
-          </div>
-        )}
-
-        {/* Tabs — horizontally scrollable on small screens */}
-        <div className="glass mx-4 sm:mx-6 mt-4 rounded-xl px-2 overflow-x-auto">
-          <div className="flex min-w-max">
-            <TabBtn id="financials" label="Financials" active={tab} onSelect={setTab} />
-            <TabBtn id="debtors" label={`Money In (${debtors.length})`} active={tab} onSelect={setTab} />
-            <TabBtn id="creditors" label={`Money Out (${creditors.length})`} active={tab} onSelect={setTab} />
-          </div>
-        </div>
-
-        {/* Message banner */}
-        {msg && (
-          <div className="px-4 sm:px-6 pt-4">
-            <div
-              style={{
-                background: msg.kind === 'ok' ? C.greenBg : '#FEF2F2',
-                color: msg.kind === 'ok' ? C.green : C.red,
-                borderColor: msg.kind === 'ok' ? '#A7F3D0' : '#FECACA',
-              }}
-              className="rounded-xl border px-4 py-2.5 text-sm font-medium rise"
-            >
-              {msg.text}
-            </div>
-          </div>
-        )}
-
-        <main className="px-4 sm:px-6 py-6">
-          {/* FINANCIALS */}
-          {tab === 'financials' && (
-            <section className="space-y-5 rise">
-              <div className="card-gloss card-static rounded-2xl p-4 sm:p-5">
-                <div className="eyebrow mb-3">Reporting period</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Field label="Label (e.g. FY 2025-26)">
-                    <input className={inputCls} style={inputStyle} value={period.period_label}
-                      onChange={(e) => setPeriod({ ...period, period_label: e.target.value })} />
-                  </Field>
-                  <Field label="Year">
-                    <input className={inputCls} style={inputStyle} inputMode="numeric" value={period.period_year}
-                      onChange={(e) => setPeriod({ ...period, period_year: e.target.value })} />
-                  </Field>
-                  <Field label="Month (1-12, optional)">
-                    <input className={inputCls} style={inputStyle} inputMode="numeric" value={period.period_month}
-                      onChange={(e) => setPeriod({ ...period, period_month: e.target.value })} />
-                  </Field>
-                </div>
-              </div>
-
-              {FIN_GROUPS.map((g) => (
-                <div key={g.title} className="card-gloss card-static rounded-2xl p-4 sm:p-5">
-                  <div className="eyebrow mb-3">{g.title}</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {g.fields.map((f) => (
-                      <Field key={f.key} label={f.label}>
-                        <input
-                          className={inputCls} style={inputStyle} inputMode="numeric"
-                          value={fin[f.key]} onChange={(e) => setFin({ ...fin, [f.key]: e.target.value })}
-                        />
-                      </Field>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Sticky frosted action bar — stays in reach on long forms / mobile */}
-              <div className="save-bar rounded-2xl px-4 py-3 mt-1 flex flex-col sm:flex-row sm:items-center gap-3">
-                <button
-                  onClick={onSaveFinancials} disabled={busy || !msmeId}
-                  style={busy || !msmeId ? disabledBtnStyle : tealBtnStyle}
-                  className="w-full sm:w-auto rounded-xl px-6 py-3 text-sm font-bold transition-transform active:translate-y-px disabled:cursor-not-allowed"
-                >
-                  {busy ? 'Saving…' : 'Save & recompute score'}
+      {/* DATA-ENTRY VIEWS — same rich header (header-only) → tabs → form */}
+      {tab !== 'overview' && (
+        <>
+          <Client360Live msmeId={msmeId} headerOnly belowHeader={tabsStrip} refreshKey={refreshKey} />
+          <div className="mx-auto max-w-5xl">
+            {/* Client id helper (until the multi-client picker exists) */}
+            {!routeId && (
+              <div className="glass mx-4 sm:mx-6 mt-4 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                <input
+                  className={`${inputCls} sm:max-w-[360px]`} style={inputStyle}
+                  placeholder="Paste an MSME id to load" value={manualId}
+                  onChange={(e) => setManualId(e.target.value)}
+                />
+                <button onClick={() => load(manualId)} style={navyBtnStyle} className="rounded-lg px-4 py-2.5 text-sm font-semibold transition-transform active:translate-y-px">
+                  Load client
                 </button>
-                <span style={{ color: C.muted }} className="text-xs">
-                  Enter all amounts in rupees. Saving recomputes this client&apos;s health score instantly.
-                </span>
               </div>
-            </section>
-          )}
+            )}
 
-          {/* DEBTORS / MONEY IN */}
-          {tab === 'debtors' && (
-            <section className="space-y-5 rise">
-              <ListCard<Debtor>
-                rows={debtors}
-                cols={[
-                  { h: 'Customer', get: (r) => r.name, primary: true },
-                  { h: 'Outstanding', get: (r) => inr(r.amount_outstanding) },
-                  { h: 'Days', get: (r) => r.days_outstanding ?? '—' },
-                  { h: 'Status', get: (r) => r.status ?? '—' },
-                ]}
-                empty="No customers yet. Add the first receivable below."
-              />
-              <AddCard title="Add a customer (receivable)">
-                <input className={`${inputCls} sm:max-w-[220px]`} style={inputStyle} placeholder="Customer name"
-                  value={newDebtor.name} onChange={(e) => setNewDebtor({ ...newDebtor, name: e.target.value })} />
-                <input className={`${inputCls} sm:max-w-[200px]`} style={inputStyle} inputMode="numeric" placeholder="Amount outstanding (₹)"
-                  value={newDebtor.amount_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, amount_outstanding: e.target.value })} />
-                <input className={`${inputCls} sm:max-w-[160px]`} style={inputStyle} inputMode="numeric" placeholder="Days outstanding"
-                  value={newDebtor.days_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, days_outstanding: e.target.value })} />
-                <button onClick={onAddDebtor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add customer</button>
-              </AddCard>
-            </section>
-          )}
+            {/* Message banner */}
+            {msg && (
+              <div className="px-4 sm:px-6 pt-4">
+                <div
+                  style={{
+                    background: msg.kind === 'ok' ? C.greenBg : '#FEF2F2',
+                    color: msg.kind === 'ok' ? C.green : C.red,
+                    borderColor: msg.kind === 'ok' ? '#A7F3D0' : '#FECACA',
+                  }}
+                  className="rounded-xl border px-4 py-2.5 text-sm font-medium rise"
+                >
+                  {msg.text}
+                </div>
+              </div>
+            )}
 
-          {/* CREDITORS / MONEY OUT */}
-          {tab === 'creditors' && (
-            <section className="space-y-5 rise">
-              <ListCard<Creditor>
-                rows={creditors}
-                cols={[
-                  { h: 'Supplier', get: (r) => r.name, primary: true },
-                  { h: 'Amount due', get: (r) => inr(r.amount_due) },
-                  { h: 'Due date', get: (r) => r.due_date ?? '—' },
-                ]}
-                empty="No suppliers yet. Add the first payable below."
-              />
-              <AddCard title="Add a supplier (payable)">
-                <input className={`${inputCls} sm:max-w-[220px]`} style={inputStyle} placeholder="Supplier name"
-                  value={newCreditor.name} onChange={(e) => setNewCreditor({ ...newCreditor, name: e.target.value })} />
-                <input className={`${inputCls} sm:max-w-[200px]`} style={inputStyle} inputMode="numeric" placeholder="Amount due (₹)"
-                  value={newCreditor.amount_due} onChange={(e) => setNewCreditor({ ...newCreditor, amount_due: e.target.value })} />
-                <input className={`${inputCls} sm:max-w-[180px]`} style={inputStyle} type="date"
-                  value={newCreditor.due_date} onChange={(e) => setNewCreditor({ ...newCreditor, due_date: e.target.value })} />
-                <button onClick={onAddCreditor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add supplier</button>
-              </AddCard>
-            </section>
-          )}
-        </main>
-      </div>
+            <main className="px-4 sm:px-6 py-6">
+              {/* FINANCIALS */}
+              {tab === 'financials' && (
+                <section className="space-y-5 rise">
+                  <div className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+                    <div className="eyebrow mb-3">Reporting period</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <Field label="Label (e.g. FY 2025-26)">
+                        <input className={inputCls} style={inputStyle} value={period.period_label}
+                          onChange={(e) => setPeriod({ ...period, period_label: e.target.value })} />
+                      </Field>
+                      <Field label="Year">
+                        <input className={inputCls} style={inputStyle} inputMode="numeric" value={period.period_year}
+                          onChange={(e) => setPeriod({ ...period, period_year: e.target.value })} />
+                      </Field>
+                      <Field label="Month (1-12, optional)">
+                        <input className={inputCls} style={inputStyle} inputMode="numeric" value={period.period_month}
+                          onChange={(e) => setPeriod({ ...period, period_month: e.target.value })} />
+                      </Field>
+                    </div>
+                  </div>
+
+                  {FIN_GROUPS.map((g) => (
+                    <div key={g.title} className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+                      <div className="eyebrow mb-3">{g.title}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {g.fields.map((f) => (
+                          <Field key={f.key} label={f.label}>
+                            <input
+                              className={inputCls} style={inputStyle} inputMode="numeric"
+                              value={fin[f.key]} onChange={(e) => setFin({ ...fin, [f.key]: e.target.value })}
+                            />
+                          </Field>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Sticky frosted action bar — stays in reach on long forms / mobile */}
+                  <div className="save-bar rounded-2xl px-4 py-3 mt-1 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <button
+                      onClick={onSaveFinancials} disabled={busy || !msmeId}
+                      style={busy || !msmeId ? disabledBtnStyle : tealBtnStyle}
+                      className="w-full sm:w-auto rounded-xl px-6 py-3 text-sm font-bold transition-transform active:translate-y-px disabled:cursor-not-allowed"
+                    >
+                      {busy ? 'Saving…' : 'Save & recompute score'}
+                    </button>
+                    <span style={{ color: C.muted }} className="text-xs">
+                      Enter all amounts in rupees. Saving recomputes this client&apos;s health score instantly.
+                    </span>
+                  </div>
+                </section>
+              )}
+
+              {/* DEBTORS / MONEY IN */}
+              {tab === 'debtors' && (
+                <section className="space-y-5 rise">
+                  <ListCard<Debtor>
+                    rows={debtors}
+                    cols={[
+                      { h: 'Customer', get: (r) => r.name, primary: true },
+                      { h: 'Outstanding', get: (r) => inr(r.amount_outstanding) },
+                      { h: 'Days', get: (r) => r.days_outstanding ?? '—' },
+                      { h: 'Status', get: (r) => r.status ?? '—' },
+                    ]}
+                    empty="No customers yet. Add the first receivable below."
+                  />
+                  <AddCard title="Add a customer (receivable)">
+                    <input className={`${inputCls} sm:max-w-[220px]`} style={inputStyle} placeholder="Customer name"
+                      value={newDebtor.name} onChange={(e) => setNewDebtor({ ...newDebtor, name: e.target.value })} />
+                    <input className={`${inputCls} sm:max-w-[200px]`} style={inputStyle} inputMode="numeric" placeholder="Amount outstanding (₹)"
+                      value={newDebtor.amount_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, amount_outstanding: e.target.value })} />
+                    <input className={`${inputCls} sm:max-w-[160px]`} style={inputStyle} inputMode="numeric" placeholder="Days outstanding"
+                      value={newDebtor.days_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, days_outstanding: e.target.value })} />
+                    <button onClick={onAddDebtor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add customer</button>
+                  </AddCard>
+                </section>
+              )}
+
+              {/* CREDITORS / MONEY OUT */}
+              {tab === 'creditors' && (
+                <section className="space-y-5 rise">
+                  <ListCard<Creditor>
+                    rows={creditors}
+                    cols={[
+                      { h: 'Supplier', get: (r) => r.name, primary: true },
+                      { h: 'Amount due', get: (r) => inr(r.amount_due) },
+                      { h: 'Due date', get: (r) => r.due_date ?? '—' },
+                    ]}
+                    empty="No suppliers yet. Add the first payable below."
+                  />
+                  <AddCard title="Add a supplier (payable)">
+                    <input className={`${inputCls} sm:max-w-[220px]`} style={inputStyle} placeholder="Supplier name"
+                      value={newCreditor.name} onChange={(e) => setNewCreditor({ ...newCreditor, name: e.target.value })} />
+                    <input className={`${inputCls} sm:max-w-[200px]`} style={inputStyle} inputMode="numeric" placeholder="Amount due (₹)"
+                      value={newCreditor.amount_due} onChange={(e) => setNewCreditor({ ...newCreditor, amount_due: e.target.value })} />
+                    <input className={`${inputCls} sm:max-w-[180px]`} style={inputStyle} type="date"
+                      value={newCreditor.due_date} onChange={(e) => setNewCreditor({ ...newCreditor, due_date: e.target.value })} />
+                    <button onClick={onAddCreditor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add supplier</button>
+                  </AddCard>
+                </section>
+              )}
+            </main>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 /* ===========================================================================
-   RECONSTRUCTED COMPONENTS  —  your paste cut off mid-`TabBtn`, so these four
-   are rebuilt from how they're called above. If your originals differ, keep
-   yours and copy only the className/style changes. Behaviour matches the usage;
-   ListCard additionally folds to stacked cards on phones (md breakpoint).
+   Sub-components — TabBtn, Field, ListCard, AddCard.
+   ListCard folds to stacked cards on phones (md breakpoint).
    =========================================================================== */
 
 function TabBtn({ id, label, active, onSelect }: { id: Tab; label: string; active: Tab; onSelect: (t: Tab) => void }) {
