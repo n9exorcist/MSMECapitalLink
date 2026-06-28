@@ -51,16 +51,76 @@ def _sector_key(sector: Optional[str]) -> str:
             return key
     return "default"
 
+def _f(v):
+    """Coerce a possibly-None / string numeric (Supabase) to float, else None."""
+    try:
+        return float(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def score_banking_from_statement(cash_pos: dict, turnover: Optional[float]) -> float:
+    """Score banking conduct from a parsed bank statement (a cash_position row).
+    Three signals a credit officer reads off a statement:
+      • overdraft / balance trend (40%) — deleveraging or building reserves is the
+        strongest conduct signal (closing vs opening balance over the period).
+      • turnover routing          (40%) — are sales actually banked vs kept off-book?
+        actual credits / declared turnover; ~1.0 = fully routed.
+      • account conduct           (20%) — neutral-positive baseline for an active,
+        operating account; refined to real bounce/breach counts once per-transaction
+        parsing exists (today we read only the statement's summary block).
+    """
+    opening = _f(cash_pos.get("opening_balance"))
+    closing = _f(cash_pos.get("closing_balance"))
+    inflow = _f(cash_pos.get("total_inflow"))
+
+    # 1) Trend — change in balance over the period, normalised to the position held.
+    #    +ve (OD paid down / reserves built) lifts above the 60 neutral line.
+    if opening is not None and closing is not None:
+        base = max(abs(opening), abs(closing), 1.0)
+        trend = max(0.0, min(100.0, 60.0 + ((closing - opening) / base) * 80.0))
+    else:
+        trend = 60.0
+
+    # 2) Routing — actual bank credits vs declared turnover.
+    if turnover and turnover > 0 and inflow is not None:
+        routing = min(100.0, (inflow / turnover) * 100.0)
+    else:
+        routing = 60.0
+
+    # 3) Conduct — baseline pending per-transaction parsing (bounces / OD breaches).
+    conduct = 70.0
+
+    return (trend * 0.4) + (routing * 0.4) + (conduct * 0.2)
+
+
 def score_banking_discipline(bounces_per_month: Optional[float],
-                             cibil: Optional[int]) -> Tuple[float, bool]:
-    """Returns (score, evidenced). A blank bounce count is NOT read as 'zero bounces',
-    and a blank CIBIL is NOT read as 600 — both fall back to UNKNOWN_SCORE. Component is
-    'evidenced' if at least one of the two inputs is actually present."""
+                             cibil: Optional[int],
+                             statement_score: Optional[float] = None,
+                             ) -> Tuple[float, bool, bool]:
+    """Returns (score, evidenced, has_cibil). Sources, strongest first:
+      • bank statement (cash_position) → statement_score, already 0-100
+      • CIBIL bureau score
+      • bounce count (fewer is better)
+    A blank bounce count is NOT read as 'zero bounces' and a blank CIBIL is NOT read as
+    600 — with no source at all the component falls back to UNKNOWN_SCORE (unassessed,
+    not 'good'). 'evidenced' = at least one source present."""
+    has_stmt = statement_score is not None
     has_bounce = bounces_per_month is not None
     has_cibil = cibil is not None
-    bounce_score = max(0.0, 100.0 - (bounces_per_month * 20)) if has_bounce else UNKNOWN_SCORE
-    cibil_score = min(100.0, max(0.0, (cibil - 600) / 2)) if has_cibil else UNKNOWN_SCORE
-    return (bounce_score * 0.6) + (cibil_score * 0.4), (has_bounce or has_cibil)
+
+    parts = []  # (score, weight) for whatever evidence exists
+    if has_stmt:
+        parts.append((statement_score, 0.55))
+    if has_cibil:
+        parts.append((min(100.0, max(0.0, (cibil - 600) / 2)), 0.30))
+    if has_bounce:
+        parts.append((max(0.0, 100.0 - (bounces_per_month * 20)), 0.15))
+
+    if not parts:
+        return UNKNOWN_SCORE, False, has_cibil
+    tw = sum(w for _, w in parts)
+    return sum(s * w for s, w in parts) / tw, True, has_cibil
 
 def score_liquidity(current_ratio: float, wc_cycle_days: float, sector: Optional[str] = None) -> float:
     cr_score = 100 if current_ratio >= 1.33 else (75 if current_ratio >= 1.0 else (40 if current_ratio >= 0.75 else 0))
@@ -93,7 +153,8 @@ def _band(score: float) -> Tuple[str, str]:
 
 def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optional[float] = None,
                               docs_ready: float = 80.0, compliance: float = 90.0,
-                              sector: Optional[str] = None) -> dict:
+                              sector: Optional[str] = None,
+                              cash_position: Optional[dict] = None) -> dict:
     cl = metrics.current_liabilities or metrics.total_outside_liabilities
     cr = metrics.current_assets / cl if cl > 0 else 0.0
     dso = (metrics.sundry_debtors / metrics.projected_annual_turnover) * 365 if metrics.projected_annual_turnover > 0 else 0.0
@@ -109,7 +170,11 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
     cibil = metrics.cibil_score
     dpd = metrics.days_past_due
 
-    banking_score, banking_ev = score_banking_discipline(bounces, cibil)
+    # Bank statement (cash_position) is the strongest banking-discipline evidence.
+    statement_score = (score_banking_from_statement(cash_position, metrics.projected_annual_turnover)
+                       if cash_position else None)
+    banking_score, banking_ev, has_cibil = score_banking_discipline(bounces, cibil, statement_score)
+    has_statement = statement_score is not None
     repay_score, repay_ev = score_behavior(dpd)
 
     components = {
@@ -132,22 +197,35 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
     data_completeness = round(sum(COMPONENT_WEIGHTS[k] for k in components if evidenced[k]) * 100)
 
     flags = []
-    if not banking_ev:
-        flags.append("No bank statement / CIBIL evidence — banking discipline (25% weight) "
-                     "is unscored; score is provisional.")
     if not repay_ev:
         flags.append("No repayment / days-past-due history on record.")
 
     band, lender = _band(health_score)
     risk = "red" if health_score < 40 else ("yellow" if health_score < 70 else "none")
     provisional = False
-    if GATE_BAND_ON_BANK_EVIDENCE and not banking_ev:
+    if not banking_ev:
+        # Zero banking evidence → hard provisional; cannot certify above MEDIUM.
         provisional = True
-        if band in ("EXCELLENT", "GOOD"):
-            band = "MEDIUM"
-            lender = "Provisional — supply bank statements + CIBIL to certify"
-        if risk == "none":
-            risk = "yellow"
+        flags.append("No bank statement / CIBIL evidence — banking discipline (25% weight) "
+                     "is unscored; score is provisional.")
+        if GATE_BAND_ON_BANK_EVIDENCE:
+            if band in ("EXCELLENT", "GOOD"):
+                band = "MEDIUM"
+                lender = "Provisional — supply bank statements + CIBIL to certify"
+            if risk == "none":
+                risk = "yellow"
+    elif not has_cibil:
+        # Bank evidence present, CIBIL missing → soft provisional. Band is NOT capped and
+        # the score rises, but full certification still waits for the bureau report.
+        provisional = True
+        if has_statement:
+            flags.append("Bank-verified from statement; CIBIL pending — provisional until "
+                         "the bureau report is on file.")
+            lender = f"{lender} · bank-verified, CIBIL pending"
+        else:
+            flags.append("Partial banking evidence on record; full bank statement and CIBIL "
+                         "pending — score is provisional.")
+    # else: bank evidence + CIBIL on file → certified (provisional stays False).
 
     return {
         "currentScore": int(health_score),

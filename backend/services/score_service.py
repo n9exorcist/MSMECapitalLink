@@ -26,6 +26,13 @@ def _latest_financials(db, msme_id: str) -> Optional[dict]:
     return rows[0] if rows else None
 
 
+def _latest_cash_position(db, msme_id: str) -> Optional[dict]:
+    # NEW: most recent parsed bank statement → banking-discipline evidence.
+    rows = (db.table("cash_position").select("*").eq("msme_id", msme_id)
+            .order("as_of_date", desc=True).limit(1).execute().data) or []
+    return rows[0] if rows else None
+
+
 def _entity(db, msme_id: str) -> dict:
     rows = (db.table("msme_entities").select("*").eq("id", msme_id)
             .limit(1).execute().data) or []
@@ -98,8 +105,10 @@ def refresh_score(db, msme_id: str) -> dict:
     docs = float(fin.get("docs_ready_pct") or 80)
     compliance = float(fin.get("compliance_pct") or 90)
 
+    cash_pos = _latest_cash_position(db, msme_id)   # NEW: bank-statement evidence
     result = calculate_composite_score(
-        metrics, bounces=bounces, docs_ready=docs, compliance=compliance, sector=sector)
+        metrics, bounces=bounces, docs_ready=docs, compliance=compliance, sector=sector,
+        cash_position=cash_pos)
 
     now = datetime.now(timezone.utc)
     ts = now.isoformat()

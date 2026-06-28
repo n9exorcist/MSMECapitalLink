@@ -51,7 +51,9 @@ def client360(msme_id: str, db=Depends(get_db)):
     bounces = score_service._opt_float(fin, "bounces_per_month")
     docs = float(fin.get("docs_ready_pct") or 80)
     comp = float(fin.get("compliance_pct") or 90)
-    r = calculate_composite_score(m, bounces=bounces, docs_ready=docs, compliance=comp, sector=sector)
+    cash_pos = score_service._latest_cash_position(db, msme_id)   # bank-statement evidence
+    r = calculate_composite_score(m, bounces=bounces, docs_ready=docs, compliance=comp,
+                                  sector=sector, cash_position=cash_pos)
 
     # ── ratios (recomputed from the same metrics the engine used) ──
     cl = m.current_liabilities or m.total_outside_liabilities
