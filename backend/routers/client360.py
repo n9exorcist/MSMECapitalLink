@@ -88,17 +88,73 @@ def client360(msme_id: str, db=Depends(get_db)):
         for k in COMPONENT_WEIGHTS
     ]
 
-    # ── turnover trend across all financial periods on record ──
-    fins = (db.table("msme_financials")
-            .select("period_label,period_year,period_month,projected_annual_turnover")
-            .eq("msme_id", msme_id).order("period_year").execute().data) or []
-    mx = max([float(f.get("projected_annual_turnover") or 0) for f in fins] or [0]) or 1
-    trend = [{
-        "label": f.get("period_label") or str(f.get("period_year") or ""),
-        "value": _cr(f.get("projected_annual_turnover")),
-        "pct": round((float(f.get("projected_annual_turnover") or 0) / mx) * 100),
-        "peak": float(f.get("projected_annual_turnover") or 0) == mx,
-    } for f in fins]
+    # ── turnover trend ──
+    # Prefer 12 monthly points from GSTR-1 (monthly_sales); fall back to the annual
+    # msme_financials view when there are no usable monthly rows. We select("*") and
+    # use tolerant getters so unknown column names degrade gracefully (fall back to the
+    # annual bar) instead of 400-ing the endpoint or rendering 12 empty bars.
+    _MABBR = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    def _rev(r):  # revenue value, whatever the column is called
+        for k in ("revenue", "outward_taxable", "taxable_value", "taxable_outward", "amount", "value"):
+            if r.get(k) is not None:
+                return float(r.get(k) or 0)
+        return 0.0
+
+    def _mval(r):  # the 'month' value, whatever the column is called
+        for k in ("month", "period", "month_label", "tax_period"):
+            if r.get(k) is not None:
+                return r.get(k)
+        return None
+
+    def _msort(r):  # chronological sort key for int 1-12 OR 'YYYY-MM[-DD]' text
+        mv = _mval(r)
+        if isinstance(mv, int):
+            return (0, mv, "")
+        s = str(mv or "")
+        return (0, int(s), "") if s.isdigit() else (1, 0, s)
+
+    def _mlabel(r):  # short month label, e.g. 'Apr'
+        mv = _mval(r)
+        try:
+            if isinstance(mv, int) or (isinstance(mv, str) and mv.isdigit()):
+                return _MABBR[int(mv)]
+            s = str(mv)
+            if len(s) >= 7 and s[4] == "-":   # 2025-04...
+                return _MABBR[int(s[5:7])]
+        except Exception:
+            pass
+        return str(mv or "")
+
+    monthly = (db.table("monthly_sales").select("*")
+               .eq("msme_id", msme_id).execute().data) or []
+
+    if monthly and any(_rev(r) for r in monthly):
+        monthly = sorted(monthly, key=_msort)
+        vals = [_rev(r) for r in monthly]
+        mx = max(vals) or 1
+        trend = [{
+            "label": _mlabel(r),
+            "value": f"{(v / 1e5):.1f}",          # ₹ Lakh per month
+            "pct": round((v / mx) * 100),
+            "peak": v == mx,
+        } for r, v in zip(monthly, vals)]
+        trend_unit = "₹ L"
+        trend_note = f"Monthly GSTR-1 revenue · FY total ≈ ₹{(sum(vals) / 1e7):.2f} Cr ({len(vals)} months)."
+    else:
+        fins = (db.table("msme_financials")
+                .select("period_label,period_year,period_month,projected_annual_turnover")
+                .eq("msme_id", msme_id).order("period_year").execute().data) or []
+        mx = max([float(f.get("projected_annual_turnover") or 0) for f in fins] or [0]) or 1
+        trend = [{
+            "label": f.get("period_label") or str(f.get("period_year") or ""),
+            "value": _cr(f.get("projected_annual_turnover")),
+            "pct": round((float(f.get("projected_annual_turnover") or 0) / mx) * 100),
+            "peak": float(f.get("projected_annual_turnover") or 0) == mx,
+        } for f in fins]
+        trend_unit = "₹ Cr"
+        trend_note = "Turnover by financial year. Add monthly GST data to see the monthly trend."
 
     # ── GST filing summary ──
     cfs = (db.table("compliance_filings").select("status").eq("msme_id", msme_id).execute().data) or []
@@ -128,7 +184,8 @@ def client360(msme_id: str, db=Depends(get_db)):
         "reco": r["recommended_lender_tier"],
         "wc": {"dso": round(dso), "inv": round(invd), "cred": round(crd), "total": round(wc), "note": wc_note},
         "trend": trend,
-        "trendNote": "Turnover by financial year. Add more periods to extend the trend.",
+        "trendUnit": trend_unit,
+        "trendNote": trend_note,
         "components": components,
         "ratios": ratios,
     }

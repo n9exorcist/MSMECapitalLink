@@ -1,3 +1,4 @@
+// app/(tabs)/index.tsx
 import React, { useEffect, useRef } from 'react';
 import { ScrollView, RefreshControl, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
 import { useDashboardData } from '../../hooks/useDashboardData';
@@ -8,6 +9,9 @@ import { C, T, S, runwayColor } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { useMsmeData } from '../../hooks/useMsmeData';
 import { useLoans } from '../../hooks/useLoans';
+import { useComplianceFilings } from '../../hooks/useComplianceFilings'; // live → GST & Tax card
+import { useMonthlySales } from '../../hooks/useMonthlySales';           // live → Sales Trend card
+import { useCashPosition } from '../../hooks/useCashPosition';           // live → Cash Runway card
 import { formatINR } from '../../lib/format';
 
 // Format an ISO date for the Next EMI card.
@@ -34,7 +38,10 @@ export default function HomeDashboard() {
 
     const activeMsmeId = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0].id : null;
     const { data: mfosData, isLoading: mfosLoading, refetch } = useDashboardData(activeMsmeId);
-    const { data: loans = [] } = useLoans(activeMsmeId); // live loan data for the Next EMI card
+    const { data: loans = [] } = useLoans(activeMsmeId);                    // live → Next EMI
+    const { data: filings = [] } = useComplianceFilings(activeMsmeId);      // live → GST & Tax
+    const { data: salesRows = [] } = useMonthlySales(activeMsmeId);         // live → Sales Trend
+    const { data: cashPos } = useCashPosition(activeMsmeId);                // live → Cash Runway
 
     // Staggered entrance — fires once, when the dashboard data is ready.
     const e1 = useRef(new Animated.Value(0)).current; // header
@@ -79,10 +86,14 @@ export default function HomeDashboard() {
     const ownerName = mfosData?.owner ?? entity?.owner_name ?? 'there';
 
     const scoreData = mfosData?.score ?? { currentScore: 0, band: 'NEUTRAL', previousScore: 0 };
-    const prevScore = scoreData.previousScore ?? 0;
+    // No real prior score yet → anchor to the current score so the delta reads
+    // "No change" instead of a phantom "↑ 76 from last week" (null coerced to 0).
+    const prevScore = scoreData.previousScore ?? (scoreData.currentScore ?? 0);
     const actions: ActionItem[] = mfosData?.actions ?? [];
 
-    // Live: moneyIn / moneyOut + Next EMI (from `loans`). Still MOCK: cashRunway, compliance, sales.
+    // Live: moneyIn / moneyOut (useDashboardData) + Next EMI (loans) + GST & Tax
+    // (compliance_filings) + Sales Trend (monthly_sales) + Cash Runway (cash_position).
+    // All six metric cards are now sourced from real data.
     const primaryLoan = loans[0] ?? null; // largest sanctioned
     const m = mfosData?.metrics ?? {
         moneyIn: { total: 0, count: 0, overdueCount: 0 },
@@ -92,6 +103,47 @@ export default function HomeDashboard() {
         compliance: { status: 'Pending', filing: '', daysLeft: 0 },
         sales: { pct: 0, thisMonth: 0, up: false },
     };
+
+    // ── GST & Tax — LIVE from compliance_filings (replaces mock m.compliance) ──
+    const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    const dayDiff = (iso: string) => Math.ceil((new Date(iso).getTime() - today0.getTime()) / 86400000);
+    const pendingFilings = filings
+        .filter((f) => f.status === 'pending')
+        .sort((a, b) => a.due_date.localeCompare(b.due_date));
+    const nextFiling = pendingFilings[0] ?? null;
+    const filedCount = filings.filter((f) => f.status !== 'pending').length;
+    const gstStatus = nextFiling
+        ? (dayDiff(nextFiling.due_date) <= 0 ? 'Due now' : 'Due soon')
+        : filings.length ? 'On track' : '—';
+    const gstSub = nextFiling
+        ? `${nextFiling.filing_type} · ${Math.max(dayDiff(nextFiling.due_date), 0)}d left`
+        : filings.length ? `${filedCount}/${filings.length} filed` : 'No filings';
+    const gstColor = nextFiling ? (dayDiff(nextFiling.due_date) <= 7 ? C.red : C.amber) : C.green;
+
+    // ── Sales Trend — LIVE from monthly_sales (replaces mock m.sales) ──
+    const latestS = salesRows.length ? salesRows[salesRows.length - 1] : null;
+    const prevS = salesRows.length > 1 ? salesRows[salesRows.length - 2] : null;
+    const latestRev = latestS ? Number(latestS.revenue) : 0;
+    const prevRev = prevS ? Number(prevS.revenue) : 0;
+    const momPct = prevRev > 0 ? Math.round(((latestRev - prevRev) / prevRev) * 100) : null;
+    const salesValue = momPct != null ? `${momPct >= 0 ? '+' : ''}${momPct}%` : '—';
+    const salesSub = latestRev ? `₹${(latestRev / 1e5).toFixed(1)}L` : 'No data';
+    const salesColor = momPct == null ? C.textMuted : momPct >= 0 ? C.green : C.red;
+
+    // ── Cash Runway — LIVE from cash_position. Handles overdraft accounts: when the
+    // balance is negative (CC/OD limit drawn), a naive cash ÷ burn runway is meaningless,
+    // so we surface the overdraft state instead of a fake "X days".
+    const cashBal = cashPos ? Number(cashPos.closing_balance) : null;
+    const dailyBurn = cashPos && cashPos.avg_daily_outflow ? Number(cashPos.avg_daily_outflow) : 0;
+    const onOverdraft = cashBal != null && cashBal < 0;
+    const runwayDays = cashBal != null && cashBal > 0 && dailyBurn > 0 ? Math.round(cashBal / dailyBurn) : null;
+    const cashValue = cashPos == null ? '—' : onOverdraft ? 'Overdraft' : runwayDays != null ? `${runwayDays} days` : '—';
+    const cashSub = cashPos == null
+        ? 'No statement yet'
+        : onOverdraft
+            ? `₹${(Math.abs(cashBal!) / 1e5).toFixed(1)}L drawn · ₹${(dailyBurn / 1000).toFixed(0)}k/day`
+            : `₹${(cashBal! / 1e5).toFixed(1)}L cash`;
+    const cashColor = cashPos == null ? C.textMuted : onOverdraft ? C.amber : runwayDays != null ? runwayColor(runwayDays) : C.textMuted;
 
     const now = new Date();
     const hour = now.getHours();
@@ -149,11 +201,11 @@ export default function HomeDashboard() {
                     <View style={styles.grid}>
                         <MetricCard icon="📥" label="Money to Collect" value={formatINR(m.moneyIn.total)} sub={`${m.moneyIn.count} customers`} badge={`${m.moneyIn.overdueCount} overdue`} color={C.teal} onPress={() => router.push('/(tabs)/money-in')} />
                         <MetricCard icon="📤" label="Money to Pay" value={formatINR(m.moneyOut.total)} sub={`${m.moneyOut.count} suppliers`} color={C.amber} onPress={() => router.push('/(tabs)/money-out')} />
-                        <MetricCard icon="🏦" label="Cash Runway" value={`${m.cashRunway.days} days`} sub={`₹${m.cashRunway.cash}L`} color={runwayColor(m.cashRunway.days)} />
-                        {/* Next EMI is now live from `loans`. Cash Runway / GST & Tax / Sales Trend are still mock (lakh-unit) until wired. */}
+                        <MetricCard icon="🏦" label="Cash Runway" value={cashValue} sub={cashSub} color={cashColor} />
+                        {/* All six cards live: Money In/Out ← useDashboardData · Cash Runway ← cash_position · Next EMI ← loans · GST & Tax ← compliance_filings · Sales Trend ← monthly_sales. */}
                         <MetricCard icon="🏛️" label="Next EMI" value={primaryLoan ? formatINR(Number(primaryLoan.emi_amount) || 0) : '—'} sub={primaryLoan ? fmtDate(primaryLoan.next_due_date) : 'No loan on file'} color={C.navy} />
-                        <MetricCard icon="📊" label="GST & Tax" value={m.compliance.status} sub={`${m.compliance.daysLeft}d left`} color={C.green} />
-                        <MetricCard icon="📈" label="Sales Trend" value={`${m.sales.pct}%`} sub={`₹${m.sales.thisMonth}L`} color={C.green} />
+                        <MetricCard icon="📊" label="GST & Tax" value={gstStatus} sub={gstSub} color={gstColor} onPress={() => router.push('/(tabs)/more')} />
+                        <MetricCard icon="📈" label="Sales Trend" value={salesValue} sub={salesSub} color={salesColor} onPress={() => router.push('/(tabs)/more')} />
                     </View>
                 </Animated.View>
             </ScrollView>

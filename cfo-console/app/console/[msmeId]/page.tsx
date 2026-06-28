@@ -12,6 +12,7 @@ import { useParams } from 'next/navigation';
 // to point at ./app/*, you can use: import { ... } from '@/lib/api';
 import { getEntry, saveFinancials, saveDebtor, saveCreditor } from '../../lib/api';
 import Client360Live from '../Client360Live';
+import DocumentUpload from '../DocumentUpload';
 
 const C = {
   navy: '#0B2E4F', teal: '#0F766E', bg: '#F0F5FA', surface: '#FFFFFF',
@@ -19,7 +20,7 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'overview' | 'financials' | 'debtors' | 'creditors';
+type Tab = 'overview' | 'financials' | 'debtors' | 'creditors' | 'documents';
 type Msg = { kind: 'ok' | 'err'; text: string };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
@@ -128,7 +129,7 @@ export default function ConsolePage() {
       if (f) {
         setFin(Object.fromEntries(FIN_KEYS.map((k) => [k, f[k] != null ? String(f[k]) : ''])));
         setPeriod({
-          period_label: f.period_label || '',
+          period_label: f.period_label ? String(f.period_label) : '',
           period_year: f.period_year ? String(f.period_year) : String(new Date().getFullYear()),
           period_month: f.period_month ? String(f.period_month) : '',
         });
@@ -156,7 +157,7 @@ export default function ConsolePage() {
         if (f) {
           setFin(Object.fromEntries(FIN_KEYS.map((k) => [k, f[k] != null ? String(f[k]) : ''])));
           setPeriod({
-            period_label: f.period_label || '',
+            period_label: f.period_label ? String(f.period_label) : '',
             period_year: f.period_year ? String(f.period_year) : String(new Date().getFullYear()),
             period_month: f.period_month ? String(f.period_month) : '',
           });
@@ -237,6 +238,7 @@ export default function ConsolePage() {
         <TabBtn id="financials" label="Financials" active={tab} onSelect={setTab} />
         <TabBtn id="debtors" label={`Money In (${debtors.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="creditors" label={`Money Out (${creditors.length})`} active={tab} onSelect={setTab} />
+        <TabBtn id="documents" label="Documents" active={tab} onSelect={setTab} />
       </div>
     </div>
   );
@@ -357,6 +359,13 @@ export default function ConsolePage() {
                       value={newDebtor.days_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, days_outstanding: e.target.value })} />
                     <button onClick={onAddDebtor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add customer</button>
                   </AddCard>
+                </section>
+              )}
+
+              {/* DOCUMENTS — upload bank statements / GST / financials */}
+              {tab === 'documents' && (
+                <section className="space-y-5 rise">
+                  <DocumentUpload msmeId={msmeId} onUploaded={() => setRefreshKey((k) => k + 1)} />
                 </section>
               )}
 

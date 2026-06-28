@@ -1,0 +1,10 @@
+# nixpacks.toml — Railway build config for the bank-statement parser.
+# Text-layer PDFs (net-banking exports) parse without these; scanned /
+# "Print to PDF" statements need OCR: tesseract = the OCR engine,
+# poppler-utils = pdftoppm/pdfinfo used to rasterise pages.
+#
+# Place at the FastAPI service root (next to requirements.txt). If you deploy
+# with a Dockerfile instead, add:  RUN apt-get update && apt-get install -y tesseract-ocr poppler-utils
+
+[phases.setup]
+aptPkgs = ["tesseract-ocr", "poppler-utils"]

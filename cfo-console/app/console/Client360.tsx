@@ -18,6 +18,7 @@ export interface Client360Data {
   flags: string[]; reco: string;
   wc: { dso: number; inv: number; cred: number; total: number; note: string };
   trend: { label: string; value: string; pct: number; peak?: boolean }[];
+  trendUnit: string;
   trendNote: string;
   components: Component[]; ratios: Ratio[];
 }
@@ -35,6 +36,7 @@ const SRI_SAI: Client360Data = {
     { label: 'FY24-25', value: '2.44', pct: 100, peak: true },
     { label: 'FY25-26*', value: '0.92', pct: 38 },
   ],
+  trendUnit: '₹ Cr',
   trendNote: 'Net margin 28% → 1.3% as topline spiked. *FY25-26 = GST run-rate.',
   components: [
     { name: 'Banking discipline', weight: 25, score: 40, evidenced: false },
@@ -200,12 +202,12 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
                     <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 9 }}>{d.wc.note}</div>
                   </div>
                   <div>
-                    <div className="eyebrow">Turnover trend · ₹ Cr</div>
-                    <div className="bars">
-                      {d.trend.map((t) => (
-                        <div key={t.label} className={`bar${t.peak ? ' peak' : ''}`}>
-                          <div className="v num">{t.value}</div>
-                          <div className="col" style={{ height: `${t.pct}%` }} />
+                    <div className="eyebrow">Turnover trend · {d.trendUnit}</div>
+                    <div className={`bars${d.trend.length > 6 ? ' many' : ''}`}>
+                      {d.trend.map((t, i) => (
+                        <div key={`${t.label}-${i}`} className={`bar${t.peak ? ' peak' : ''}`}>
+                          {(d.trend.length <= 6 || t.peak) && <div className="v num">{t.value}</div>}
+                          <div className="col" style={{ height: `${Math.max(t.pct, 2)}%` }} />
                           <div className="x">{t.label}</div>
                         </div>
                       ))}
@@ -358,10 +360,12 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
         .op{color:var(--muted);font-weight:800;font-size:14px}
         .bars{display:flex;align-items:flex-end;gap:14px;height:84px;margin-top:10px;padding-top:6px}
         .bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
-        .bar .col{width:100%;border-radius:7px 7px 0 0;background:linear-gradient(180deg,#3E80B8,#0B2E4F);box-shadow:inset 0 1px 0 rgba(255,255,255,.30)}
+        .bar .col{width:100%;min-height:3px;border-radius:7px 7px 0 0;background:linear-gradient(180deg,#3E80B8,#0B2E4F);box-shadow:inset 0 1px 0 rgba(255,255,255,.30)}
         .bar.peak .col{background:linear-gradient(180deg,#2DD4BF,#0F766E);box-shadow:inset 0 1px 0 rgba(255,255,255,.40)}
         .bar .v{font-size:11px;font-weight:800;color:var(--navy);margin-bottom:3px}
         .bar .x{font-size:9.5px;color:var(--muted);font-weight:700;margin-top:4px}
+        .bars.many{gap:5px}
+        .bars.many .x{font-size:8px;letter-spacing:-.02em;margin-top:3px}
         .aside{overflow:hidden;margin-bottom:12px}
         .ah{padding:10px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#FAFCFF,#F4F8FD)}
         .ah h3{margin:0;font-size:12px;font-weight:800;color:var(--navy)}
