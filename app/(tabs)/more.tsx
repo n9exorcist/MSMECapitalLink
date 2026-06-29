@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { ScrollView, View, Text, StyleSheet, SafeAreaView, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { C } from '@/constants/theme';
 import { useMsmeData } from '../../hooks/useMsmeData';
@@ -6,6 +6,8 @@ import { useLoans } from '../../hooks/useLoans';
 import { useMonthlySales } from '../../hooks/useMonthlySales';
 import { useComplianceFilings } from '../../hooks/useComplianceFilings';
 import { formatINR } from '../../lib/format';
+import { useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 // ─── STRICT MODE TYPES ──────────────────────────────────────────────────────
 type MonthStatus = '✓' | '✕' | '—';
@@ -95,6 +97,17 @@ export default function MoreScreen() {
     const { data: loans = [], isLoading: loansLoading } = useLoans(activeMsmeId);
     const { data: filings = [], isLoading: filingsLoading } = useComplianceFilings(activeMsmeId);
     const { data: salesRows = [], isLoading: salesLoading } = useMonthlySales(activeMsmeId);
+
+    // ── ADD THIS ──────────────────────────────────────────────────────────
+    // Re-fetch this screen's data whenever the tab regains focus, so newly
+    // uploaded GST returns show up without a manual app reload.
+    const queryClient = useQueryClient();
+    useFocusEffect(
+        useCallback(() => {
+            queryClient.invalidateQueries();
+        }, [queryClient])
+    );
+    // ──────────────────────────────────────────────────────────────────────
 
     const loan = loans[0] ?? null; // primary = largest sanctioned
 

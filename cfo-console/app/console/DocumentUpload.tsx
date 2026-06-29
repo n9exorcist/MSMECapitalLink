@@ -19,6 +19,9 @@ export default function DocumentUpload({
     msmeId: string;
     onUploaded?: () => void;
 }) {
+    const [files, setFiles] = useState<File[]>([]);
+    const [progress, setProgress] = useState<Record<string, string>>({}); // filename -> status
+    // keep: docType, busy, docs, error  (remove: file, result)
     const [docType, setDocType] = useState('bank_statement');
     const [file, setFile] = useState<File | null>(null);
     const [busy, setBusy] = useState(false);
@@ -44,21 +47,24 @@ export default function DocumentUpload({
     }, [msmeId]);
 
     const onUpload = async () => {
-        if (!file) return;
+        if (files.length === 0) return;
         setBusy(true);
         setError(null);
-        setResult(null);
-        try {
-            const r = await uploadDocument(msmeId, file, docType);
-            setResult(r);
-            setFile(null);
-            await refresh();
-            onUploaded?.();
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'Upload failed');
-        } finally {
-            setBusy(false);
+        setProgress({});
+        for (const f of files) {
+            setProgress((p) => ({ ...p, [f.name]: 'uploading' }));
+            try {
+                const r = await uploadDocument(msmeId, f, docType);
+                setProgress((p) => ({ ...p, [f.name]: r.status })); // 'parsed' | 'stored'
+            } catch (e) {
+                setProgress((p) => ({ ...p, [f.name]: 'failed' }));
+                setError(e instanceof Error ? e.message : 'Upload failed');
+            }
         }
+        setFiles([]);
+        await refresh();          // one refresh after the whole batch
+        onUploaded?.();
+        setBusy(false);
     };
 
     const ex = result?.extracted;
@@ -90,15 +96,27 @@ export default function DocumentUpload({
                     className="docup-file"
                     type="file"
                     accept="application/pdf"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    multiple                                                   // ← add
+                    onChange={(e) => setFiles(Array.from(e.target.files ?? []))}  // ← array
                     disabled={busy}
                 />
 
-                <button className="docup-btn" onClick={onUpload} disabled={!file || busy}>
-                    {busy ? 'Uploading & reading…' : 'Upload & process'}
+                <button className="docup-btn" onClick={onUpload} disabled={files.length === 0 || busy}>
+                    {busy ? `Uploading ${files.length} file(s)…` : `Upload & process${files.length ? ` (${files.length})` : ''}`}
                 </button>
 
                 {error && <div className="docup-err">{error}</div>}
+
+                {Object.keys(progress).length > 0 && (
+                    <ul className="docup-list">
+                        {Object.entries(progress).map(([name, status]) => (
+                            <li key={name} className="docup-item">
+                                <span className="docup-item-name">{name}</span>
+                                <span className={`docup-badge ${status}`}>{status}</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
 
                 {result && (
                     <div className={`docup-result ${result.status}`}>

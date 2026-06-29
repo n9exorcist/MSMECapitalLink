@@ -7,7 +7,8 @@ const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             retry: 2, // If an API call fails, retry twice before showing an error
-            staleTime: 1000 * 60 * 5, // Keep data fresh in the cache for 5 minutes
+            refetchOnWindowFocus: true,   // refetch when the app/screen regains focus
+            staleTime: 30_000,            // treat data fresh for 30s to avoid over-fetching
         },
     },
 });

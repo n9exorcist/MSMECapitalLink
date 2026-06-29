@@ -14,8 +14,9 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
 from core.database import get_db
 from services.statement_parser import parse_bank_statement
-
+from services.gstr3b import parse_gstr3b          # ← ADD THIS LINE
 router = APIRouter(prefix="/msme", tags=["documents"])
+
 BUCKET = "documents"
 
 
@@ -80,6 +81,33 @@ async def upload_document(
                 }).execute()
                 status = "parsed"
             # else: file is stored, figures need manual entry
+
+
+             # ↓↓↓ ADD YOUR BLOCK HERE — between the bank `if` and the documents update ↓↓↓
+        elif doc_type == "gst_return":
+            print(">>> GST branch HIT, doc_type =", doc_type)   # temp debug
+            extracted = parse_gstr3b(raw)
+            print(">>> parsed:", extracted.get("parsed"), "revenue:", extracted.get("revenue"))
+            if extracted.get("parsed"):
+                month = extracted["month"]
+                db.table("monthly_sales").delete() \
+                    .eq("msme_id", msme_id).eq("month", month).execute()
+                db.table("monthly_sales").insert({
+                    "msme_id": msme_id, "month": month,
+                    "revenue": extracted["revenue"], "source": "GSTR-3B",
+                }).execute()
+                db.table("compliance_filings").delete() \
+                    .eq("msme_id", msme_id).eq("filing_type", "GSTR-3B") \
+                    .eq("period_month", month).execute()
+                db.table("compliance_filings").insert({
+                    "msme_id": msme_id, "filing_type": "GSTR-3B",
+                    "period": extracted["period_label"], "period_month": month,
+                    "due_date": extracted["due_date"], "filed_date": extracted["filed_date"],
+                    "amount": extracted["total_tax"], "status": extracted["status"],
+                    "arn": extracted["arn"],
+                }).execute()
+                status = "parsed"
+        # ↑↑↑ END OF YOUR BLOCK ↑↑↑
 
         db.table("documents").update({
             "status": status,

@@ -40,6 +40,7 @@ npm run dev          # next dev (localhost:3000)
 npm run build        # next build
 npm run lint         # eslint
 http://localhost:3000/console
+Remove-Item -Recurse -Force .next
 ```
 
 **Backend (`backend/`):**
@@ -52,6 +53,11 @@ docker build -t mfos-api . && docker run -p 8000:8000 mfos-api
 netstat -ano | findstr :8000
 taskkill /PID 31428 /F
 uvicorn main:app --reload --port 8000
+cd C:\Users\narayanan.selvaraj\MSMECapitalLink\backend
+Remove-Item -Recurse -Force .venv
+uv venv
+.\.venv\Scripts\Activate.ps1
+uv pip install -r requirements.txt
 ```
 
 There is no test suite, linter config, or type-check script for the backend yet. (A legacy `backend/msme_capital_link.db` SQLite file is still in the tree from before the Supabase migration — it is unused; the app is fully on Supabase.)
