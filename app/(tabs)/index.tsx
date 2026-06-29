@@ -1,5 +1,5 @@
 // app/(tabs)/index.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { ScrollView, RefreshControl, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { ScoreArc } from '../../components/ScoreArc';
@@ -13,6 +13,8 @@ import { useComplianceFilings } from '../../hooks/useComplianceFilings'; // live
 import { useMonthlySales } from '../../hooks/useMonthlySales';           // live → Sales Trend card
 import { useCashPosition } from '../../hooks/useCashPosition';           // live → Cash Runway card
 import { formatINR } from '../../lib/format';
+import { useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Format an ISO date for the Next EMI card.
 const fmtDate = (iso: string | null): string => {
@@ -42,6 +44,15 @@ export default function HomeDashboard() {
     const { data: filings = [] } = useComplianceFilings(activeMsmeId);      // live → GST & Tax
     const { data: salesRows = [] } = useMonthlySales(activeMsmeId);         // live → Sales Trend
     const { data: cashPos } = useCashPosition(activeMsmeId);                // live → Cash Runway
+
+    // ↓↓↓ ADD HERE (same block) ↓↓↓
+    const queryClient = useQueryClient();
+    useFocusEffect(
+        useCallback(() => {
+            queryClient.invalidateQueries();
+        }, [queryClient])
+    );
+    // ↑↑↑ ADD HERE ↑↑↑
 
     // Staggered entrance — fires once, when the dashboard data is ready.
     const e1 = useRef(new Animated.Value(0)).current; // header

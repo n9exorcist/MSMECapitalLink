@@ -98,16 +98,14 @@ export default function MoreScreen() {
     const { data: filings = [], isLoading: filingsLoading } = useComplianceFilings(activeMsmeId);
     const { data: salesRows = [], isLoading: salesLoading } = useMonthlySales(activeMsmeId);
 
-    // ── ADD THIS ──────────────────────────────────────────────────────────
-    // Re-fetch this screen's data whenever the tab regains focus, so newly
-    // uploaded GST returns show up without a manual app reload.
+    // ↓↓↓ ADD HERE ↓↓↓
     const queryClient = useQueryClient();
     useFocusEffect(
         useCallback(() => {
             queryClient.invalidateQueries();
         }, [queryClient])
     );
-    // ──────────────────────────────────────────────────────────────────────
+    // ↑↑↑ ADD HERE ↑↑↑
 
     const loan = loans[0] ?? null; // primary = largest sanctioned
 
