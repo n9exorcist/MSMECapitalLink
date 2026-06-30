@@ -5,6 +5,7 @@ pydantic==2.7.4
 pydantic-settings==2.2.1
 
 # Database & Auth
+truststore==0.10.4       # verify TLS via the OS trust store (corporate proxy CA)
 supabase==2.9.1
 gotrue==2.9.1
 httpx>=0.25.0,<0.28.0

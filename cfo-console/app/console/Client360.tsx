@@ -5,7 +5,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import CreditBureauPanel from './CreditBureauPanel';
-import { openHealthReport } from '../lib/api';
+import { downloadHealthReport } from '../lib/api';
 
 type Pill = 'ok' | 'near' | 'warn' | 'crit' | 'na';
 interface Component { name: string; weight: number; score: number | null; evidenced: boolean }
@@ -97,7 +97,7 @@ export default function Client360({
     setGenTile(title);
     setGenErr(null);
     try {
-      await openHealthReport(msmeId);
+      await downloadHealthReport(msmeId);
     } catch (e) {
       setGenErr((e as Error).message);
     } finally {

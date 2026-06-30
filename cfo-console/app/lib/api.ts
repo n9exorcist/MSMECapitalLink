@@ -59,8 +59,9 @@ export const getClient360 = (id: string): Promise<Client360Data> =>
 
 // ── Reports ──
 // Fetches the Health Report PDF (auth header included so it survives an auth flip)
-// and opens it inline in a new tab. The route returns Content-Disposition: inline.
-export async function openHealthReport(msmeId: string): Promise<void> {
+// and saves it as a .pdf file via a download anchor. The route sends
+// Content-Disposition: attachment with the filename.
+export async function downloadHealthReport(msmeId: string): Promise<void> {
     const headers = await authHeaders();
     const res = await fetch(`${API}/msme/${msmeId}/reports/health`, { headers });
     if (res.status === 401) {
@@ -74,9 +75,21 @@ export async function openHealthReport(msmeId: string): Promise<void> {
         const detail = await res.text().catch(() => '');
         throw new Error(detail || res.statusText);
     }
-    const blob = await res.blob();
+    // force the PDF MIME so the browser never treats the blob as HTML
+    const blob = new Blob([await res.blob()], { type: 'application/pdf' });
+
+    // prefer the server-provided filename; fall back to a sensible default
+    const cd = res.headers.get('Content-Disposition') ?? '';
+    const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+    const filename = match ? decodeURIComponent(match[1]) : `MFOS_Health_Report_${msmeId}.pdf`;
+
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 

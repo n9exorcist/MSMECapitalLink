@@ -1,3 +1,17 @@
+# Verify TLS against the OS trust store (e.g. the Windows certificate store) instead of
+# only certifi's bundle, so Supabase/httpx calls succeed behind a corporate TLS-inspection
+# proxy whose root CA is installed in the OS store but not in certifi. MUST run before
+# httpx/supabase build any SSL context. Harmless elsewhere (the OS store also trusts public
+# CAs, so Railway/Linux is unaffected). Best-effort: skip cleanly if truststore is missing.
+try:
+    import truststore as _truststore
+    _truststore.inject_into_ssl()
+except Exception:
+    pass
+
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
@@ -11,10 +25,21 @@ from routers import reports
 from routers import health, dashboard
 from routers import clients, data_entry
 
+# Warm the report renderer (launch Chromium in the worker) at startup, off-thread so
+# boot isn't blocked, and stop the worker on shutdown.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from reports.render_pool import prewarm, shutdown
+    threading.Thread(target=prewarm, daemon=True).start()
+    yield
+    shutdown()
+
+
 # Initialize FastAPI
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version=settings.VERSION
+    version=settings.VERSION,
+    lifespan=lifespan,
 )
 
 # Set up CORS - MUST be explicit origin when allow_credentials=True
@@ -27,6 +52,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # let the browser read the download filename from the report response
+    expose_headers=["Content-Disposition"],
 )
 
 @app.get("/")

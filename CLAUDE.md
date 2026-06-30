@@ -60,6 +60,13 @@ uv venv
 uv pip install -r requirements.txt
 ```
 
+**Claude (`claude/`):**
+
+```bash
+ C:\Users\narayanan.selvaraj\MSMECapitalLink
+ claude
+```
+
 There is no test suite, linter config, or type-check script for the backend yet. (A legacy `backend/msme_capital_link.db` SQLite file is still in the tree from before the Supabase migration — it is unused; the app is fully on Supabase.)
 
 ## Architecture & cross-cutting concerns

@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from core.database import get_db
 from reports.context import build_health_report_context
-from reports.render import render_health_report_pdf_subprocess
+from reports.render import render_health_report_pdf_warm
 
 router = APIRouter(prefix="/msme", tags=["reports"])
 
@@ -43,10 +43,10 @@ async def health_report(msme_id: str, db=Depends(get_db)):
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"Failed to build report context: {e!r}")
 
-    # Render in a separate process (see render.py) — the only path that works under
-    # uvicorn --reload on Windows. Blocking, so offload it off the event loop.
+    # Render on the persistent warm worker (see render.py / render_pool.py) — the path
+    # that works under uvicorn --reload on Windows. Blocking, so offload it.
     try:
-        pdf = await run_in_threadpool(render_health_report_pdf_subprocess, context)
+        pdf = await run_in_threadpool(render_health_report_pdf_warm, context)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"Failed to render report PDF: {e!r}")
 
@@ -54,5 +54,6 @@ async def health_report(msme_id: str, db=Depends(get_db)):
     return StreamingResponse(
         io.BytesIO(pdf),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        # `attachment` → browsers download a .pdf file instead of rendering it inline.
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
