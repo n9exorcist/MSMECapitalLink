@@ -167,7 +167,7 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
 
     # cibil_score / days_past_due are Optional — None means "unknown", which is
     # different from a verified 0. (Schema default for both should be None, not 0.)
-    cibil = metrics.cibil_score
+    cibil = metrics.cibil_score if (metrics.cibil_score and metrics.cibil_score >= 300) else None
     dpd = metrics.days_past_due
 
     # Bank statement (cash_position) is the strongest banking-discipline evidence.

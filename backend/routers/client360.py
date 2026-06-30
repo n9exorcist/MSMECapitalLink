@@ -12,7 +12,7 @@ from services.scoring_engine import calculate_composite_score, COMPONENT_WEIGHTS
 
 router = APIRouter(prefix="/msme", tags=["client360"])
 
-_NAMES = {
+NAMES = {
     "banking_discipline": "Banking discipline", "liquidity_ratios": "Liquidity ratios",
     "gst_consistency": "GST consistency", "leverage_quality": "Leverage quality",
     "profitability": "Profitability", "compliance_discipline": "Compliance discipline",
@@ -47,6 +47,13 @@ def client360(msme_id: str, db=Depends(get_db)):
         raise HTTPException(404, "No financials on record for this client")
 
     m = score_service._to_metrics(fin)
+    # Apply the latest bureau pull (same overlay refresh_score uses) so this live
+    # recompute sees CIBIL and can certify. Without it, /client360 reads the NULL
+    # msme_financials.cibil_score and always returns provisional.
+    _pull = score_service._latest_bureau_pull(db, msme_id)
+    if _pull and _pull.get("score") is not None:
+        m.cibil_score = int(_pull["score"])
+
     sector = ent.get("industry") or ent.get("sector")
     bounces = score_service._opt_float(fin, "bounces_per_month")
     docs = float(fin.get("docs_ready_pct") or 80)
@@ -85,7 +92,7 @@ def client360(msme_id: str, db=Depends(get_db)):
     ]
 
     components = [
-        {"name": _NAMES[k], "weight": int(round(COMPONENT_WEIGHTS[k] * 100)),
+        {"name": NAMES[k], "weight": int(round(COMPONENT_WEIGHTS[k] * 100)),
          "score": r["component_breakdown"][k], "evidenced": r["evidenced"][k]}
         for k in COMPONENT_WEIGHTS
     ]
@@ -98,27 +105,27 @@ def client360(msme_id: str, db=Depends(get_db)):
     _MABBR = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-    def _rev(r):  # revenue value, whatever the column is called
+    def _rev(row):  # revenue value, whatever the column is called
         for k in ("revenue", "outward_taxable", "taxable_value", "taxable_outward", "amount", "value"):
-            if r.get(k) is not None:
-                return float(r.get(k) or 0)
+            if row.get(k) is not None:
+                return float(row.get(k) or 0)
         return 0.0
 
-    def _mval(r):  # the 'month' value, whatever the column is called
+    def _mval(row):  # the 'month' value, whatever the column is called
         for k in ("month", "period", "month_label", "tax_period"):
-            if r.get(k) is not None:
-                return r.get(k)
+            if row.get(k) is not None:
+                return row.get(k)
         return None
 
-    def _msort(r):  # chronological sort key for int 1-12 OR 'YYYY-MM[-DD]' text
-        mv = _mval(r)
+    def _msort(row):  # chronological sort key for int 1-12 OR 'YYYY-MM[-DD]' text
+        mv = _mval(row)
         if isinstance(mv, int):
             return (0, mv, "")
         s = str(mv or "")
         return (0, int(s), "") if s.isdigit() else (1, 0, s)
 
-    def _mlabel(r):  # short month label, e.g. 'Apr'
-        mv = _mval(r)
+    def _mlabel(row):  # short month label, e.g. 'Apr'
+        mv = _mval(row)
         try:
             if isinstance(mv, int) or (isinstance(mv, str) and mv.isdigit()):
                 return _MABBR[int(mv)]
@@ -132,16 +139,16 @@ def client360(msme_id: str, db=Depends(get_db)):
     monthly = (db.table("monthly_sales").select("*")
                .eq("msme_id", msme_id).execute().data) or []
 
-    if monthly and any(_rev(r) for r in monthly):
+    if monthly and any(_rev(row) for row in monthly):
         monthly = sorted(monthly, key=_msort)
-        vals = [_rev(r) for r in monthly]
+        vals = [_rev(row) for row in monthly]
         mx = max(vals) or 1
         trend = [{
-            "label": _mlabel(r),
+            "label": _mlabel(row),
             "value": f"{(v / 1e5):.1f}",          # ₹ Lakh per month
             "pct": round((v / mx) * 100),
             "peak": v == mx,
-        } for r, v in zip(monthly, vals)]
+        } for row, v in zip(monthly, vals)]
         trend_unit = "₹ L"
         trend_note = f"Monthly GSTR-1 revenue · FY total ≈ ₹{(sum(vals) / 1e7):.2f} Cr ({len(vals)} months)."
     else:

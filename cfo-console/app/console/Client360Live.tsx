@@ -1,16 +1,14 @@
 'use client';
 // app/console/Client360Live.tsx
 // Fetches the live /msme/{id}/client360 payload and feeds it to <Client360>.
-// Use this anywhere you have an msmeId (the Overview tab) instead of the static
-// <Client360 /> default. Falls back to a clear message on error/empty.
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Client360, { type Client360Data } from './Client360';
-import { getClient360 } from '../lib/api';   // app/lib/api.ts (sibling of app/console)
+import { getClient360 } from '../lib/api';
 
 export default function Client360Live(
-  { msmeId, belowHeader, headerOnly, refreshKey = 0 }:
-    { msmeId: string; belowHeader?: ReactNode; headerOnly?: boolean; refreshKey?: number },
+  { msmeId, belowHeader, headerOnly, refreshKey = 0, onBureauSaved }:
+    { msmeId: string; belowHeader?: ReactNode; headerOnly?: boolean; refreshKey?: number; onBureauSaved?: () => void },
 ) {
   const [data, setData] = useState<Client360Data | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -24,12 +22,19 @@ export default function Client360Live(
     return () => { ignore = true; };
   }, [msmeId, refreshKey]);
 
-  // headerOnly views (data-entry tabs) keep the tabs visible while the header loads.
   if (err) return headerOnly
     ? <>{belowHeader}</>
     : <>{belowHeader}<div style={{ padding: 24, color: '#475569' }}>Couldn&apos;t load this client: {err}</div></>;
   if (!data) return headerOnly
     ? <>{belowHeader}</>
     : <>{belowHeader}<div style={{ padding: 24, color: '#94A3B8' }}>Loading Client 360…</div></>;
-  return <Client360 data={data} belowHeader={belowHeader} headerOnly={headerOnly} />;
+  return (
+    <Client360
+      data={data}
+      belowHeader={belowHeader}
+      headerOnly={headerOnly}
+      msmeId={msmeId}
+      onBureauSaved={onBureauSaved}
+    />
+  );
 }

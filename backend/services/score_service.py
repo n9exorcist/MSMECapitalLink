@@ -32,6 +32,12 @@ def _latest_cash_position(db, msme_id: str) -> Optional[dict]:
             .order("as_of_date", desc=True).limit(1).execute().data) or []
     return rows[0] if rows else None
 
+def _latest_bureau_pull(db, msme_id: str) -> Optional[dict]:
+    # Most recent credit-bureau pull → authoritative CIBIL, off msme_financials.
+    rows = (db.table("credit_bureau_pulls").select("*").eq("msme_id", msme_id)
+            .order("pulled_on", desc=True).limit(1).execute().data) or []
+    return rows[0] if rows else None
+
 
 def _entity(db, msme_id: str) -> dict:
     rows = (db.table("msme_entities").select("*").eq("id", msme_id)
@@ -99,6 +105,11 @@ def refresh_score(db, msme_id: str) -> dict:
 
     ent = _entity(db, msme_id)
     metrics = _to_metrics(fin)
+    # Prefer a real bureau pull over the legacy msme_financials.cibil_score.
+    # Falls back to the column when no pull exists, so nothing breaks mid-migration.
+    pull = _latest_bureau_pull(db, msme_id)
+    if pull and pull.get("score") is not None:
+        metrics.cibil_score = int(pull["score"])
     sector = ent.get("industry") or ent.get("sector")
     # CHANGED: None when unknown (was `or 0` → assumed "no bounces")
     bounces = _opt_float(fin, "bounces_per_month")

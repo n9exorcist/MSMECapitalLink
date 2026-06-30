@@ -1,12 +1,10 @@
 'use client';
 // app/console/[msmeId]/Client360.tsx
-// §4 deep-dive "Overview" — BD360-style dense banker view, ported from the HTML
-// mock to a self-contained React component. CSS lives in <style jsx> so it's scoped
-// to this component (won't collide with the eyebrow/num/pill classes in globals.css).
-// Data is props, defaulted to the real Sri Sai Interiors extraction — drop it in and
-// it renders as-is; pass `data` later to wire it to the backend.
+// §4 deep-dive "Overview" — dense banker view. Data is props, defaulted to the
+// real Sri Sai extraction; <Client360Live> passes live `data` from /client360.
 
 import type { CSSProperties, ReactNode } from 'react';
+import CreditBureauPanel from './CreditBureauPanel';
 
 type Pill = 'ok' | 'near' | 'warn' | 'crit' | 'na';
 interface Component { name: string; weight: number; score: number | null; evidenced: boolean }
@@ -75,7 +73,19 @@ function compPill(c: Component): [Pill, string] {
   return ['crit', 'Critical'];
 }
 
-export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: { data?: Client360Data; belowHeader?: ReactNode; headerOnly?: boolean }) {
+export default function Client360({
+  data = SRI_SAI,
+  belowHeader,
+  headerOnly,
+  msmeId,
+  onBureauSaved,
+}: {
+  data?: Client360Data;
+  belowHeader?: ReactNode;
+  headerOnly?: boolean;
+  msmeId?: string;
+  onBureauSaved?: () => void;
+}) {
   const d = data;
   return (
     <div className={`c360${headerOnly ? ' c360-head' : ''}`} style={rootVars}>
@@ -98,7 +108,7 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
           <div className="schip prov">
             <div className="lab">Bank-Ready</div>
             <div className="val num">—</div>
-            <div className="tag">Needs CIBIL</div>
+            <div className="tag">{d.provisional ? 'Needs CIBIL' : 'Bank-ready'}</div>
           </div>
           <div className="schip na">
             <div className="lab">Green</div>
@@ -127,12 +137,14 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
                   <div className="tile">
                     <div className="lab">Health Score</div>
                     <div className="big num" style={{ color: 'var(--amber)' }}>{d.health}<small>/100</small></div>
-                    <div className="sub" style={{ color: 'var(--amber)' }}>Band B → gated to {d.band} · provisional</div>
+                    <div className="sub" style={{ color: 'var(--amber)' }}>Band B → gated to {d.band}{d.provisional ? ' · provisional' : ''}</div>
                   </div>
                   <div className="tile">
                     <div className="lab">Bank-Readiness</div>
-                    <div className="big num" style={{ color: 'var(--muted)' }}>—</div>
-                    <div className="sub" style={{ color: 'var(--sub)' }}>Blocked — no CIBIL / bank evidence</div>
+                    <div className="big num" style={{ color: d.provisional ? 'var(--muted)' : 'var(--green)' }}>{d.provisional ? '—' : '✓'}</div>
+                    <div className="sub" style={{ color: d.provisional ? 'var(--sub)' : 'var(--green)' }}>
+                      {d.provisional ? 'Blocked — no CIBIL / bank evidence' : 'Bank-verified · CIBIL on file'}
+                    </div>
                   </div>
                   <div className="tile">
                     <div className="lab">Working-Capital Cycle</div>
@@ -167,7 +179,7 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
                   <tfoot><tr>
                     <td>Composite Health</td><td className="wt num">100%</td><td className="num">{d.health}</td>
                     <td className="num">{TARGET}</td><td className="num neg">−{TARGET - (d.health ?? 0)}</td>
-                    <td><span className="pill p-warn">Provisional</span></td>
+                    <td><span className={`pill ${d.provisional ? 'p-warn' : 'p-ok'}`}>{d.provisional ? 'Provisional' : 'Certified'}</span></td>
                   </tr></tfoot>
                 </table></div>
               </section>
@@ -235,10 +247,10 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
                 <div className="ah"><h3>Data Completeness</h3></div>
                 <div className="comp">
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 800 }}>
-                    <span style={{ color: 'var(--amber)' }}>{d.provisional ? 'Provisional' : 'Complete'}</span>
-                    <span className="num" style={{ color: 'var(--amber)' }}>{d.completeness}%</span>
+                    <span style={{ color: d.provisional ? 'var(--amber)' : 'var(--green)' }}>{d.provisional ? 'Provisional' : 'Complete'}</span>
+                    <span className="num" style={{ color: d.provisional ? 'var(--amber)' : 'var(--green)' }}>{d.completeness}%</span>
                   </div>
-                  <div className="meter"><i style={{ width: `${d.completeness}%` }} /></div>
+                  <div className="meter"><i style={{ width: `${d.completeness}%`, background: d.provisional ? 'linear-gradient(90deg,var(--amber),#F59E0B)' : 'linear-gradient(90deg,var(--green),#34D399)' }} /></div>
                   {d.flags.map((f) => <div className="flag" key={f}><b>!</b> {f}</div>)}
                 </div>
                 <div className="reco">
@@ -246,6 +258,18 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
                   <div className="txt">{d.reco}</div>
                 </div>
               </div>
+
+              {/* Credit Bureau entry — resolves the "no CIBIL" flag above */}
+              {onBureauSaved && (
+                <div style={{ marginBottom: 12 }}>
+                  <CreditBureauPanel
+                    msmeId={msmeId ?? ''}
+                    subjectName={d.owner}
+                    subjectPan={d.pan}
+                    onSaved={onBureauSaved}
+                  />
+                </div>
+              )}
             </aside>
           </div>
 
@@ -395,7 +419,6 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
         .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:0 0 14px 14px;min-width:0;max-width:100%}
         .tscroll table{min-width:520px}
 
-        /* ≤1080 (tablet): single column, top bar stacks + UN-STICKS, rail is a chip strip */
         @media (max-width:1080px){
           .shell{grid-template-columns:1fr;gap:10px;padding:10px}
           .aside{position:static}
@@ -412,7 +435,6 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
           .toolbar{order:3;flex:1 1 100%;flex-direction:row;align-items:center;justify-content:space-between;min-width:0}
           .docwall{padding:0 10px 16px}
         }
-        /* ≤760 (large phone): stack the tiles / WC pair / doc tiles */
         @media (max-width:760px){
           .tiles{grid-template-columns:1fr}
           .tile{border-right:0;border-bottom:1px solid var(--line)}
@@ -422,7 +444,6 @@ export default function Client360({ data = SRI_SAI, belowHeader, headerOnly }: {
           .tiles2{grid-template-columns:1fr}
           .bars{height:72px}
         }
-        /* ≤430 (phone): tighten spacing + scale the big numbers down */
         @media (max-width:430px){
           .shell{padding:8px}
           .schip{padding:6px 9px}

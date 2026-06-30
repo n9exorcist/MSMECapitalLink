@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
 import { uploadDocument, listDocuments, type DocRow, type UploadResult } from '../lib/api';
+import FinancialReviewScreen from './FinancialReviewScreen';
 
 const DOC_TYPES = [
     { value: 'bank_statement', label: 'Bank statement (PDF)' },
@@ -8,9 +9,6 @@ const DOC_TYPES = [
     { value: 'financials', label: 'Financial statement' },
     { value: 'other', label: 'Other document' },
 ];
-
-const lakh = (n: number) => '₹' + (Math.abs(n) / 1e5).toFixed(1) + 'L';
-const perDay = (n: number) => '₹' + Math.round(Math.abs(n)).toLocaleString('en-IN') + '/day';
 
 export default function DocumentUpload({
     msmeId,
@@ -21,13 +19,12 @@ export default function DocumentUpload({
 }) {
     const [files, setFiles] = useState<File[]>([]);
     const [progress, setProgress] = useState<Record<string, string>>({}); // filename -> status
-    // keep: docType, busy, docs, error  (remove: file, result)
     const [docType, setDocType] = useState('bank_statement');
-    const [file, setFile] = useState<File | null>(null);
     const [busy, setBusy] = useState(false);
-    const [result, setResult] = useState<UploadResult | null>(null);
     const [docs, setDocs] = useState<DocRow[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [review, setReview] = useState<UploadResult['review']>(undefined); // financials → confirm screen
+    const [reviewDoc, setReviewDoc] = useState<string | undefined>(undefined); // its source file name
 
     const refresh = useCallback(async () => {
         try {
@@ -56,6 +53,7 @@ export default function DocumentUpload({
             try {
                 const r = await uploadDocument(msmeId, f, docType);
                 setProgress((p) => ({ ...p, [f.name]: r.status })); // 'parsed' | 'stored'
+                if (r.review) { setReview(r.review); setReviewDoc(f.name); } // financials → confirm
             } catch (e) {
                 setProgress((p) => ({ ...p, [f.name]: 'failed' }));
                 setError(e instanceof Error ? e.message : 'Upload failed');
@@ -66,8 +64,6 @@ export default function DocumentUpload({
         onUploaded?.();
         setBusy(false);
     };
-
-    const ex = result?.extracted;
 
     return (
         <div className="docup">
@@ -96,8 +92,8 @@ export default function DocumentUpload({
                     className="docup-file"
                     type="file"
                     accept="application/pdf"
-                    multiple                                                   // ← add
-                    onChange={(e) => setFiles(Array.from(e.target.files ?? []))}  // ← array
+                    multiple
+                    onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
                     disabled={busy}
                 />
 
@@ -116,54 +112,6 @@ export default function DocumentUpload({
                             </li>
                         ))}
                     </ul>
-                )}
-
-                {result && (
-                    <div className={`docup-result ${result.status}`}>
-                        {result.status === 'parsed' && ex ? (
-                            <>
-                                <div className="docup-rtitle">✓ Read and saved to the dashboard</div>
-                                <div className="docup-grid">
-                                    <div>
-                                        <span>Closing balance</span>
-                                        <b className={ex.closing_balance != null && ex.closing_balance < 0 ? 'neg' : ''}>
-                                            {ex.closing_balance != null
-                                                ? ex.closing_balance < 0
-                                                    ? `${lakh(ex.closing_balance)} (overdraft)`
-                                                    : lakh(ex.closing_balance)
-                                                : '—'}
-                                        </b>
-                                    </div>
-                                    <div>
-                                        <span>Daily burn</span>
-                                        <b>{ex.avg_daily_outflow != null ? perDay(ex.avg_daily_outflow) : '—'}</b>
-                                    </div>
-                                    <div>
-                                        <span>Money in / out</span>
-                                        <b>
-                                            {ex.total_inflow != null ? lakh(ex.total_inflow) : '—'} /{' '}
-                                            {ex.total_outflow != null ? lakh(ex.total_outflow) : '—'}
-                                        </b>
-                                    </div>
-                                    <div>
-                                        <span>Period</span>
-                                        <b>
-                                            {ex.period_from ?? '—'} → {ex.period_to ?? '—'}
-                                        </b>
-                                    </div>
-                                </div>
-                                <div className={`docup-conf ${ex.confidence}`}>
-                                    read via {ex.method} · {ex.confidence} confidence
-                                    {ex.confidence !== 'high' ? ' — please double-check the figures' : ''}
-                                </div>
-                            </>
-                        ) : (
-                            <div className="docup-rtitle warn">
-                                ⚠ File stored, but the figures couldn&apos;t be read automatically. Enter them in the
-                                Cash / Financials tab.
-                            </div>
-                        )}
-                    </div>
                 )}
             </div>
 
@@ -188,6 +136,16 @@ export default function DocumentUpload({
                 )}
             </div>
 
+            {review && (
+                <FinancialReviewScreen
+                    msmeId={msmeId}
+                    payload={review}
+                    sourceDocName={reviewDoc}
+                    onSaved={() => { setReview(undefined); setReviewDoc(undefined); refresh(); onUploaded?.(); }}
+                    onCancel={() => { setReview(undefined); setReviewDoc(undefined); }}
+                />
+            )}
+
             <style>{`
         .docup { display:flex; flex-direction:column; gap:16px; max-width:560px; }
         .docup-card { background:#fff; border:1px solid #E2EAF4; border-radius:16px; padding:20px; }
@@ -198,19 +156,6 @@ export default function DocumentUpload({
         .docup-btn { margin-top:16px; width:100%; padding:12px; border:0; border-radius:10px; background:#0F766E; color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
         .docup-btn:disabled { opacity:.5; cursor:not-allowed; }
         .docup-err { margin-top:12px; padding:10px 12px; border-radius:10px; background:#FEF2F2; color:#B91C1C; font-size:13px; }
-        .docup-result { margin-top:16px; padding:14px; border-radius:12px; background:#F0FDF4; border:1px solid #BBF7D0; }
-        .docup-result.stored, .docup-result.failed { background:#FFFBEB; border-color:#FDE68A; }
-        .docup-rtitle { font-size:13.5px; font-weight:700; color:#15803D; margin-bottom:10px; }
-        .docup-rtitle.warn { color:#B45309; margin-bottom:0; }
-        .docup-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
-        .docup-grid > div { display:flex; flex-direction:column; gap:2px; }
-        .docup-grid span { font-size:11px; color:#64748B; }
-        .docup-grid b { font-size:14px; color:#0B2E4F; font-weight:700; }
-        .docup-grid b.neg { color:#B45309; }
-        .docup-conf { margin-top:10px; font-size:11.5px; color:#64748B; }
-        .docup-conf.high { color:#15803D; }
-        .docup-conf.medium { color:#B45309; }
-        .docup-conf.low { color:#B91C1C; }
         .docup-empty { font-size:13px; color:#94A3B8; margin:4px 0 0; }
         .docup-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
         .docup-item { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid #EEF4FB; border-radius:10px; }
@@ -220,6 +165,7 @@ export default function DocumentUpload({
         .docup-badge { font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; text-transform:capitalize; }
         .docup-badge.parsed { background:#DCFCE7; color:#15803D; }
         .docup-badge.stored { background:#FEF3C7; color:#B45309; }
+        .docup-badge.uploading { background:#E0F2FE; color:#0369A1; }
         .docup-badge.processing { background:#E0F2FE; color:#0369A1; }
         .docup-badge.failed { background:#FEE2E2; color:#B91C1C; }
       `}</style>

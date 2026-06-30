@@ -1,7 +1,9 @@
 """routers/documents.py
 
 CFO console uploads source docs → store the raw file in Supabase Storage, parse
-bank statements into cash_position, and record the upload in `documents`.
+bank statements into cash_position, GST returns into monthly_sales +
+compliance_filings, and financial statements into a review payload the advisor
+confirms before it's saved. Every upload is recorded in `documents`.
 
 Mount in main.py:
     from routers import documents
@@ -14,7 +16,9 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
 from core.database import get_db
 from services.statement_parser import parse_bank_statement
-from services.gstr3b import parse_gstr3b          # ← ADD THIS LINE
+from services.gstr3b import parse_gstr3b
+from services.financial_statement import parse_financial_statement
+
 router = APIRouter(prefix="/msme", tags=["documents"])
 
 BUCKET = "documents"
@@ -50,7 +54,8 @@ async def upload_document(
     }).execute()
     doc_id = ins.data[0]["id"]
 
-    extracted = None
+    extracted = None        # structured cash extraction (bank statements)
+    review = None           # financial-statement figures awaiting advisor confirm
     status = "stored"
     try:
         # 3) parse bank statements → cash_position
@@ -82,12 +87,8 @@ async def upload_document(
                 status = "parsed"
             # else: file is stored, figures need manual entry
 
-
-             # ↓↓↓ ADD YOUR BLOCK HERE — between the bank `if` and the documents update ↓↓↓
         elif doc_type == "gst_return":
-            print(">>> GST branch HIT, doc_type =", doc_type)   # temp debug
             extracted = parse_gstr3b(raw)
-            print(">>> parsed:", extracted.get("parsed"), "revenue:", extracted.get("revenue"))
             if extracted.get("parsed"):
                 month = extracted["month"]
                 db.table("monthly_sales").delete() \
@@ -107,13 +108,23 @@ async def upload_document(
                     "arn": extracted["arn"],
                 }).execute()
                 status = "parsed"
-        # ↑↑↑ END OF YOUR BLOCK ↑↑↑
 
+        # financial statements → parse to a review payload ONLY. The advisor
+        # confirms the figures in FinancialReviewScreen, whose Save commits them.
+        # This parser ALWAYS returns a payload carrying a `confidence` flag — it
+        # has NO `parsed` boolean like the bank/GST parsers — so we always
+        # surface it. A misread can't reach msme_financials without a human Save.
+        elif doc_type == "financials":
+            review = parse_financial_statement(raw)
+            status = "parsed"
+
+        # persist whatever was parsed (bank extract or financials review) for audit
+        persisted = extracted if extracted is not None else review
         db.table("documents").update({
             "status": status,
-            "extracted": extracted,
-            "period_from": extracted["period_from"] if extracted else None,
-            "period_to": extracted["period_to"] if extracted else None,
+            "extracted": persisted,
+            "period_from": (persisted or {}).get("period_from"),
+            "period_to": (persisted or {}).get("period_to"),
         }).eq("id", doc_id).execute()
 
     except Exception as e:  # noqa: BLE001
@@ -122,7 +133,7 @@ async def upload_document(
         ).eq("id", doc_id).execute()
         raise HTTPException(500, f"Processing failed: {e}")
 
-    return {"document_id": doc_id, "status": status, "extracted": extracted}
+    return {"document_id": doc_id, "status": status, "extracted": extracted, "review": review}
 
 
 @router.get("/{msme_id}/documents")

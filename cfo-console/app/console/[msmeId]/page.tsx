@@ -246,12 +246,25 @@ export default function ConsolePage() {
   return (
     <div style={{ color: C.text }} className="min-h-screen">
       {/* OVERVIEW — Client 360 renders: blue header → tabs (belowHeader) → its body */}
-      {tab === 'overview' && <Client360Live msmeId={msmeId} belowHeader={tabsStrip} refreshKey={refreshKey} />}
+      {tab === 'overview' && (
+        <Client360Live
+          msmeId={msmeId}
+          belowHeader={tabsStrip}
+          refreshKey={refreshKey}
+          onBureauSaved={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
 
       {/* DATA-ENTRY VIEWS — same rich header (header-only) → tabs → form */}
       {tab !== 'overview' && (
         <>
-          <Client360Live msmeId={msmeId} headerOnly belowHeader={tabsStrip} refreshKey={refreshKey} />
+          <Client360Live
+            msmeId={msmeId}
+            headerOnly
+            belowHeader={tabsStrip}
+            refreshKey={refreshKey}
+            onBureauSaved={() => setRefreshKey((k) => k + 1)}
+          />
           <div className="mx-auto max-w-5xl">
             {/* Client id helper (until the multi-client picker exists) */}
             {!routeId && (
