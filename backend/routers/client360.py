@@ -7,8 +7,8 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from core.database import get_db
-from services import score_service
-from services.scoring_engine import calculate_composite_score, COMPONENT_WEIGHTS, _sector_key, WC_CYCLE_BANDS
+from services.read_model import build_read_model, ReadModelError
+from services.scoring_engine import COMPONENT_WEIGHTS
 
 router = APIRouter(prefix="/msme", tags=["client360"])
 
@@ -39,43 +39,18 @@ def _pill(v, good, warn, higher_is_better=True, fmt="{:.2f}"):
 
 @router.get("/{msme_id}/client360")
 def client360(msme_id: str, db=Depends(get_db)):
-    ent = score_service._entity(db, msme_id)
-    if not ent:
-        raise HTTPException(404, "Client not found")
-    fin = score_service._latest_financials(db, msme_id)
-    if not fin:
-        raise HTTPException(404, "No financials on record for this client")
+    # Single computed read-model (entity + financials + bureau overlay + score +
+    # ratios). Scoring lives in services.read_model — this route only shapes the view.
+    try:
+        rm = build_read_model(db, msme_id)
+    except ReadModelError as e:
+        raise HTTPException(404, str(e))
 
-    m = score_service._to_metrics(fin)
-    # Apply the latest bureau pull (same overlay refresh_score uses) so this live
-    # recompute sees CIBIL and can certify. Without it, /client360 reads the NULL
-    # msme_financials.cibil_score and always returns provisional.
-    _pull = score_service._latest_bureau_pull(db, msme_id)
-    if _pull and _pull.get("score") is not None:
-        m.cibil_score = int(_pull["score"])
+    ent, fin, m, r, sector = rm.entity, rm.financials, rm.metrics, rm.score, rm.sector
+    cr, dscr, tol_tnw, icr = rm.current_ratio, rm.dscr, rm.tol_tnw, rm.icr
+    dso, invd, crd, wc = rm.dso, rm.inv_days, rm.cred_days, rm.wc_cycle
+    _, good, okb = rm.wc_band
 
-    sector = ent.get("industry") or ent.get("sector")
-    bounces = score_service._opt_float(fin, "bounces_per_month")
-    docs = float(fin.get("docs_ready_pct") or 80)
-    comp = float(fin.get("compliance_pct") or 90)
-    cash_pos = score_service._latest_cash_position(db, msme_id)   # bank-statement evidence
-    r = calculate_composite_score(m, bounces=bounces, docs_ready=docs, compliance=comp,
-                                  sector=sector, cash_position=cash_pos)
-
-    # ── ratios (recomputed from the same metrics the engine used) ──
-    cl = m.current_liabilities or m.total_outside_liabilities
-    cr = (m.current_assets / cl) if cl > 0 else 0.0
-    dso = (m.sundry_debtors / m.projected_annual_turnover) * 365 if m.projected_annual_turnover > 0 else 0.0
-    invd = (m.inventory / m.annual_purchases) * 365 if m.annual_purchases > 0 else 0.0
-    crd = (m.sundry_creditors / m.annual_purchases) * 365 if m.annual_purchases > 0 else 0.0
-    wc = dso + invd - crd
-    tol_tnw = (m.total_outside_liabilities / m.tangible_net_worth) if m.tangible_net_worth > 0 else None
-    icr = (m.ebit / m.interest_expense) if m.interest_expense > 0 else None
-    dnum = m.net_profit_after_tax + m.depreciation + m.interest_on_term_loan
-    dden = m.principal_repayment + m.interest_on_term_loan
-    dscr = (dnum / dden) if dden > 0 else None
-
-    _, good, okb = WC_CYCLE_BANDS.get(_sector_key(sector), WC_CYCLE_BANDS["default"])
     cr_v, cr_s, cr_l = _pill(cr, 1.33, 1.0)
     dscr_v, dscr_s, dscr_l = _pill(dscr, 1.5, 1.25)
     tol_v, tol_s, tol_l = _pill(tol_tnw, 3.0, 5.0, higher_is_better=False)

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MFOS Working-Capital Limit Assessment — {{ client_name }}</title>
+<style>
+  :root{
+    --navy:#0B2E4F; --navy2:#103F6B; --ink:#0F172A; --sub:#475569; --muted:#8595A8;
+    --teal:#0F766E; --teal2:#14B8A6; --tealwash:#ECFDFA;
+    --amber:#B45309; --amberwash:#FFF7ED; --red:#C0392B; --redwash:#FDF2F0;
+    --green:#157F5B;
+    --line:#E2EAF4; --line2:#D3DEEC; --paper:#FFFFFF; --wash:#F5F8FC;
+  }
+  *{box-sizing:border-box;}
+  @page{ size:A4; margin:0; }
+  html,body{margin:0;padding:0;}
+  body{ font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; color:var(--ink);
+    font-size:10.2px; line-height:1.5; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .num{ font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+  .page{ width:210mm; min-height:297mm; background:var(--paper); page-break-after:always; position:relative; overflow:hidden; }
+  .page:last-child{ page-break-after:auto; }
+  .pad{ padding:16mm 16mm 22mm; }
+
+  .runhead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:1.5px solid var(--navy); padding-bottom:7px; margin-bottom:18px; }
+  .runhead .eyebrow{ font-size:8.4px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--navy); }
+  .runhead .doc{ font-size:8.4px; font-weight:600; letter-spacing:.05em; color:var(--muted); }
+  .foot{ position:absolute; left:16mm; right:16mm; bottom:11mm; display:flex; justify-content:space-between; align-items:center;
+    border-top:1px solid var(--line); padding-top:7px; font-size:7.6px; color:var(--muted); letter-spacing:.02em; }
+  .foot b{ color:var(--sub); font-weight:700; }
+
+  .sec-no{ font-size:8px; font-weight:800; letter-spacing:.18em; color:var(--teal); text-transform:uppercase; }
+  h2.sec{ font-family:Georgia,serif; font-size:19px; font-weight:700; color:var(--navy); margin:2px 0 3px; letter-spacing:-.01em; }
+  .sec-sub{ font-size:9.4px; color:var(--sub); margin:0 0 16px; max-width:155mm; }
+  p.body{ margin:0 0 10px; } p.body b{ color:var(--navy); }
+
+  /* cover */
+  .cover{ color:#EAF3FB; background:
+      radial-gradient(680px 320px at 86% -8%, rgba(20,184,166,.22), transparent 60%),
+      radial-gradient(560px 360px at -8% 110%, rgba(94,234,212,.10), transparent 55%),
+      linear-gradient(158deg,#0A2A47 0%,var(--navy2) 60%,#0E3A60 100%);
+    padding:20mm 18mm; display:flex; flex-direction:column; min-height:297mm; }
+  .cv-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .brandmark{ display:flex; align-items:center; gap:11px; }
+  .brandmark .logo{ width:34px;height:34px;border-radius:9px; background:linear-gradient(180deg,var(--teal2),var(--teal));
+    display:flex;align-items:center;justify-content:center; font-family:Georgia,serif; font-weight:700; font-size:18px; color:#06231F; }
+  .brandmark .bt{ font-family:Georgia,serif; font-size:17px; font-weight:700; color:#fff; line-height:1; }
+  .brandmark .bs{ font-size:7.8px; font-weight:700; letter-spacing:.22em; color:#7FE3D4; text-transform:uppercase; margin-top:3px; }
+  .cv-meta{ text-align:right; font-size:8.2px; color:#9FC6E6; letter-spacing:.04em; line-height:1.7; }
+  .cv-kicker{ margin-top:46mm; font-size:9px; font-weight:800; letter-spacing:.3em; text-transform:uppercase; color:#6FD9C8; }
+  .cv-title{ font-family:Georgia,serif; font-size:36px; font-weight:700; line-height:1.06; color:#fff; margin:8px 0 0; letter-spacing:-.015em; }
+  .cv-title .thin{ display:block; font-size:20px; font-weight:400; color:#BFE0F5; margin-top:6px; }
+  .cv-client{ margin-top:10mm; padding:16px 18px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); }
+  .cv-client .nm{ font-family:Georgia,serif; font-size:22px; font-weight:700; color:#fff; }
+  .cv-client .ow{ font-size:9.6px; color:#BFE0F5; margin-top:3px; }
+  .cv-client .row{ display:flex; gap:26px; margin-top:11px; flex-wrap:wrap; }
+  .cv-client .row .k{ font-size:7.6px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7FA8CC; }
+  .cv-client .row .v{ font-size:10px; color:#EAF3FB; font-weight:600; margin-top:1px; }
+  .cv-verdict{ margin-top:auto; display:flex; align-items:flex-end; justify-content:space-between; gap:18px; }
+  .vbox .lab{ font-size:8.4px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#7FA8CC; }
+  .vbox .word{ font-family:Georgia,serif; font-size:46px; font-weight:700; color:#fff; line-height:1; margin-top:4px; }
+  .vbox .word .pts{ font-size:20px; color:#6FD9C8; font-weight:400; margin-left:8px; }
+  .vbox .band{ font-size:9px; color:#BFE0F5; margin-top:9px; }
+  .seal{ width:118px; height:108px; flex:0 0 auto; border-radius:14px; border:1.5px solid rgba(127,227,212,.55); position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 38%, rgba(20,184,166,.20), rgba(11,46,79,0)); }
+  .seal .s0{ font-size:8px; font-weight:800; letter-spacing:.1em; color:#9FE6D9; text-transform:uppercase; }
+  .seal .s1{ font-family:Georgia,serif; font-size:22px; font-weight:700; color:#fff; margin-top:4px; }
+  .seal .s2{ font-size:7px; font-weight:700; letter-spacing:.1em; color:#9FE6D9; text-transform:uppercase; margin-top:4px; text-align:center; }
+
+  /* hero */
+  .hero{ display:flex; align-items:center; justify-content:space-between; gap:18px; border-radius:14px; padding:16px 20px; margin:2px 0 18px;
+    background:linear-gradient(160deg,#0A2A47,var(--navy2)); color:#fff; box-shadow:0 1px 0 rgba(15,118,110,.04); }
+  .hero .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#7FE3D4; }
+  .hero .big{ font-family:Georgia,serif; font-size:34px; font-weight:700; line-height:1; margin-top:4px; }
+  .hero .big small{ font-size:15px; color:#BFE0F5; font-weight:400; margin-left:6px; }
+  .hero .sub{ font-size:9px; color:#BFE0F5; margin-top:5px; }
+  .hero .right{ text-align:right; } .hero .right .k{ font-size:7.4px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9FC6E6; }
+  .hero .right .v{ font-size:13px; font-weight:700; margin-top:2px; }
+
+  /* key-value computation tables */
+  .kvtab{ width:100%; border-collapse:collapse; }
+  .kvtab td{ padding:6.8px 0; border-bottom:1px solid var(--line); font-size:9.8px; }
+  .kvtab td.k{ color:var(--sub); } .kvtab td.k .mut{ color:var(--muted); font-size:8.6px; }
+  .kvtab td.v{ text-align:right; font-weight:700; color:var(--navy); }
+  .kvtab tr.head td{ border-bottom:1.5px solid var(--navy); font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding-top:0; }
+  .kvtab tr.sub td.k{ color:var(--muted); padding-left:12px; }
+  .kvtab tr.eq td{ border-top:1px solid var(--line2); }
+  .kvtab tr.eq td.k{ font-weight:700; color:var(--navy); }
+  .kvtab tr.sum td{ border-top:1.5px solid var(--navy); border-bottom:0; font-family:Georgia,serif; font-size:12px; color:var(--teal); padding-top:9px; font-weight:700; }
+  .kvtab tr.memo td{ border-bottom:0; font-size:8.8px; color:var(--muted); padding-top:9px; }
+  .note{ font-size:8.8px; color:var(--sub); margin-top:10px; }
+  .note b{ color:var(--navy); }
+
+  /* WC cycle strip */
+  .wcwrap{ margin-top:18px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--wash); }
+  .wceyebrow{ font-size:8px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .wcrow{ display:flex; align-items:center; gap:9px; }
+  .wcbox{ background:#fff; border:1px solid var(--line2); border-radius:9px; padding:8px 12px; text-align:center; min-width:64px; }
+  .wcbox b{ display:block; font-family:Georgia,serif; font-size:18px; color:var(--navy); }
+  .wcbox span{ font-size:7.4px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .wcbox.tot{ border-color:#F0B86A; background:var(--amberwash); } .wcbox.tot b{ color:var(--amber); }
+  .wcop{ font-family:Georgia,serif; font-size:18px; color:var(--muted); font-weight:700; }
+
+  /* comfort chips */
+  .chips{ display:flex; gap:10px; margin-top:16px; }
+  .chip{ flex:1; border:1px solid var(--line); border-radius:11px; padding:11px 14px; }
+  .chip .k{ font-size:7.8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .chip .v{ font-family:Georgia,serif; font-size:19px; font-weight:700; color:var(--navy); margin-top:2px; }
+  .chip .s{ font-size:8.4px; color:var(--sub); margin-top:2px; }
+
+  /* recommendation + steps + disclaimer */
+  .recobox{ border:1.5px solid var(--teal); border-radius:14px; overflow:hidden; margin:2px 0 16px; }
+  .recobox .rh{ background:linear-gradient(160deg,#0A2A47,var(--navy2)); color:#fff; padding:15px 18px; }
+  .recobox .rh .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#7FE3D4; }
+  .recobox .rh .big{ font-family:Georgia,serif; font-size:22px; font-weight:700; margin-top:4px; }
+  .recobox .rh .sub{ font-size:9px; color:#BFE0F5; margin-top:4px; }
+  .recobox .rb{ padding:13px 18px; display:flex; gap:22px; }
+  .recobox .rb .item .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .recobox .rb .item .v{ font-size:10px; font-weight:700; color:var(--navy); margin-top:2px; }
+  ul.asm{ margin:0; padding:2px 0 0 18px; } ul.asm li{ font-size:9.2px; color:var(--ink); margin-bottom:7px; line-height:1.45; } ul.asm li b{ color:var(--navy); }
+  .disclaimer{ margin-top:16px; padding:12px 14px; background:var(--wash); border-radius:10px; font-size:8px; color:var(--muted); line-height:1.5; }
+  .disclaimer b{ color:var(--sub); }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 — COVER -->
+<section class="page cover">
+  <div class="cv-top">
+    <div class="brandmark"><div class="logo">M</div><div><div class="bt">MFOS</div><div class="bs">MSME Financial OS</div></div></div>
+    <div class="cv-meta">Prepared for the lender<br>Balance sheet as at <b style="color:#EAF3FB">{{ bs_date }}</b> (audited)<br>Issued {{ issued_long }} &middot; Advisor: {{ advisor }}</div>
+  </div>
+  <div class="cv-kicker">Working-Capital Facility &middot; Renewal Assessment</div>
+  <div class="cv-title">Working-Capital Limit Assessment
+    <span class="thin">Permissible bank finance &amp; drawing power</span>
+  </div>
+  <div class="cv-client">
+    <div class="nm">{{ client_name }}</div>
+    <div class="ow">Proprietor: {{ owner }} &middot; {{ sector }} &middot; {{ msme_class }} enterprise</div>
+    <div class="row">
+      <div><div class="k">GSTIN</div><div class="v num">{{ gstin }}</div></div>
+      <div><div class="k">PAN</div><div class="v num">{{ pan }}</div></div>
+      <div><div class="k">Constitution</div><div class="v">{{ constitution }}</div></div>
+      <div><div class="k">Location</div><div class="v">{{ location }}</div></div>
+      <div><div class="k">Auditor</div><div class="v">{{ auditor }}</div></div>
+    </div>
+  </div>
+  <div class="cv-verdict">
+    <div class="vbox">
+      <div class="lab">Recommended Working-Capital Limit</div>
+      <div class="word">&#8377;{{ recommended_limit_cr }}<span class="pts num">Cr</span></div>
+      <div class="band">Basis <b style="color:#fff">{{ binding }}</b> &middot; {{ product }}</div>
+    </div>
+    <div class="seal">
+      <div class="s0">Facility</div>
+      <div class="s1">CC / OD</div>
+      <div class="s2">Fund-based<br>working capital</div>
+    </div>
+  </div>
+</section>
+
+<!-- PAGE 2 — MPBF -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; WC Limit Assessment</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">01 &mdash; The assessment</div>
+    <h2 class="sec">Permissible Bank Finance</h2>
+    <p class="sec-sub">Computed by the Tandon Committee method from the {{ period_label }} audited balance sheet. Method II stipulates the borrower fund 25% of current assets from long-term sources &mdash; which targets a current ratio of at least 1.33.</p>
+
+    <div class="hero">
+      <div>
+        <div class="lab">Recommended limit</div>
+        <div class="big num">&#8377;{{ recommended_limit_cr }}<small>Cr</small></div>
+        <div class="sub">{{ recommended_limit_inr }} &middot; constrained by {{ binding }}</div>
+      </div>
+      <div class="right">
+        <div class="k">Current ratio</div><div class="v num">{{ current_ratio }}</div>
+        <div class="k" style="margin-top:7px;">Product</div><div class="v">CC / OD</div>
+      </div>
+    </div>
+
+    <table class="kvtab">
+      <tr class="head"><td>MPBF &mdash; Tandon Method II</td><td style="text-align:right;">{{ period_label }}</td></tr>
+      <tr><td class="k">Total current assets (TCA)</td><td class="v num">{{ tca_inr }}</td></tr>
+      <tr class="sub"><td class="k">Less: other current liabilities (ex-bank)</td><td class="v num">{{ ocl_inr }}</td></tr>
+      {% if has_existing_bank %}<tr class="sub"><td class="k">Less: existing bank finance</td><td class="v num">{{ existing_bank_inr }}</td></tr>{% endif %}
+      <tr class="eq"><td class="k">Working-capital gap (WCG)</td><td class="v num">{{ wcg_inr }}</td></tr>
+      <tr class="sub"><td class="k">Less: stipulated promoter margin ({{ min_nwc_pct }} of TCA)</td><td class="v num">{{ min_nwc_inr }}</td></tr>
+      <tr class="sum"><td>MPBF &mdash; Method II</td><td class="v num">{{ mpbf2_inr }}</td></tr>
+      <tr class="memo"><td class="k">Memo &middot; MPBF Method I (75% of WCG)</td><td class="v num" style="color:var(--muted);font-weight:600;">{{ mpbf1_inr }}</td></tr>
+      <tr class="memo"><td class="k">Memo &middot; actual net working capital</td><td class="v num" style="color:var(--muted);font-weight:600;">{{ actual_nwc_inr }}</td></tr>
+      <tr class="memo"><td class="k">Memo &middot; surplus over stipulated margin</td><td class="v num" style="color:var(--green);font-weight:700;">{{ surplus_nwc_inr }}</td></tr>
+    </table>
+
+    <p class="note">Method II permits bank finance of <b>{{ mpbf2_cr }} Cr</b> against the working-capital gap, after the borrower funds {{ min_nwc_pct }} of current assets. Actual net working capital of {{ actual_nwc_inr }} comfortably exceeds the stipulated margin (surplus {{ surplus_nwc_inr }}), consistent with the current ratio of {{ current_ratio }} &mdash; the file carries its own short-term funding well.</p>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 2 of 4 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 3 — DRAWING POWER + WC CYCLE -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; WC Limit Assessment</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">02 &mdash; Security cover</div>
+    <h2 class="sec">Drawing Power</h2>
+    <p class="sec-sub">Drawing power from chargeable current assets after standard margins &mdash; the ceiling on drawals against the sanctioned limit.</p>
+
+    <table class="kvtab">
+      <tr class="head"><td>Drawing power computation</td><td style="text-align:right;">Margin</td></tr>
+      <tr><td class="k">Inventory / stock</td><td class="v num">{{ inventory_inr }}</td></tr>
+      <tr class="sub"><td class="k">Less: sundry creditors (unpaid stock)</td><td class="v num">{{ creditors_inr }}</td></tr>
+      <tr class="eq"><td class="k">Paid stock</td><td class="v num">{{ paid_stock_inr }}</td></tr>
+      <tr class="sub"><td class="k">Stock drawing power <span class="mut">(after {{ stock_margin_pct }} margin)</span></td><td class="v num">{{ dp_stock_inr }}</td></tr>
+      <tr><td class="k">Book debts (sundry debtors)</td><td class="v num">{{ debtors_inr }}</td></tr>
+      <tr class="sub"><td class="k">Debtor drawing power <span class="mut">(after {{ debtor_margin_pct }} margin)</span></td><td class="v num">{{ dp_debtors_inr }}</td></tr>
+      <tr class="sum"><td>Drawing Power</td><td class="v num">{{ drawing_power_inr }}</td></tr>
+    </table>
+
+    <p class="note">Drawing power of <b>{{ drawing_power_cr }} Cr</b> exceeds the MPBF of {{ mpbf2_cr }} Cr, so the limit is <b>MPBF-constrained</b>, not security-constrained &mdash; the charged stock and receivables provide ample cover for the recommended facility.</p>
+
+    <div class="wcwrap">
+      <div class="wceyebrow">Working-capital cycle &mdash; what the limit funds</div>
+      <div class="wcrow">
+        <div class="wcbox"><b class="num">{{ wc_dso }}</b><span>Debtor days</span></div>
+        <div class="wcop">+</div>
+        <div class="wcbox"><b class="num">{{ wc_inv }}</b><span>Inventory</span></div>
+        <div class="wcop">&minus;</div>
+        <div class="wcbox"><b class="num">{{ wc_cred }}</b><span>Creditor</span></div>
+        <div class="wcop">=</div>
+        <div class="wcbox tot"><b class="num">{{ wc_total }}</b><span>Cycle</span></div>
+      </div>
+      <div class="note" style="margin-top:11px;">Receivables of <b>&#8377;{{ receivables_cr }} Cr</b> sit behind the {{ wc_dso }} debtor-days that dominate the {{ wc_total }}-day cycle &mdash; the working capital the facility is sized to bridge.</div>
+    </div>
+
+    <div class="chips">
+      <div class="chip"><div class="k">Current ratio</div><div class="v num">{{ current_ratio }}</div><div class="s">Norm &ge; 1.33 &middot; comfortable</div></div>
+      <div class="chip"><div class="k">TOL / TNW</div><div class="v num">{{ tol_tnw }}</div><div class="s">Norm &le; 3.00 &middot; leverage watch</div></div>
+      <div class="chip"><div class="k">Annual turnover</div><div class="v num">&#8377;{{ turnover_cr }} Cr</div><div class="s">Audited {{ period_label }}</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 3 of 4 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 4 — BASIS & RECOMMENDATION -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; WC Limit Assessment</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">03 &mdash; Basis &amp; recommendation</div>
+    <h2 class="sec">Basis, Assumptions &amp; Recommendation</h2>
+
+    <div class="recobox">
+      <div class="rh">
+        <div class="lab">Recommendation</div>
+        <div class="big">Sanction a CC / OD limit of &#8377;{{ recommended_limit_cr }} Cr</div>
+        <div class="sub">Fund-based working capital against hypothecation of stock &amp; book debts &middot; reviewed annually</div>
+      </div>
+      <div class="rb">
+        <div class="item"><div class="k">Limit</div><div class="v">{{ recommended_limit_inr }}</div></div>
+        <div class="item"><div class="k">Basis</div><div class="v">{{ binding }}, capped by drawing power</div></div>
+        <div class="item"><div class="k">Drawing power</div><div class="v">&#8377;{{ drawing_power_cr }} Cr</div></div>
+      </div>
+    </div>
+
+    <p class="sec-sub" style="margin-bottom:10px;">Assumptions &amp; basis of computation</p>
+    <ul class="asm">
+      <li><b>Source figures</b> &mdash; the {{ period_label }} audited balance sheet ({{ auditor }}). The limit should be re-cast on each fresh audited statement.</li>
+      <li><b>Existing bank finance</b> &mdash; {% if has_existing_bank %}{{ existing_bank_inr }} netted from current liabilities.{% else %}none on record, so other current liabilities are taken as the full current-liabilities balance. An existing CC/OD, once recorded, would net against this.{% endif %}</li>
+      <li><b>Drawing-power margins</b> &mdash; {{ stock_margin_pct }} on paid stock and {{ debtor_margin_pct }} on book debts, per standard CC norms. Sundry creditors are deducted from stock to value only paid-for inventory.</li>
+      <li><b>Debtor eligibility</b> &mdash; ageing (the usual &le;90-day cut-off) is not on file, so the full debtor balance is taken net of margin. Tightening on overdue debtors would reduce drawing power, not the MPBF-based limit.</li>
+    </ul>
+
+    <div class="disclaimer">
+      <b>About this assessment.</b> Prepared by MFOS from the client's {{ period_label }} audited financials ({{ auditor }}) using the Tandon Committee methodology for maximum permissible bank finance and standard drawing-power margins. It is an advisory indication of a working-capital facility, not a sanction or a commitment to lend. The sanctioned limit, margins, security, and pricing rest with the lender. Figures are as reported in the underlying documents. &middot; Generated {{ issued_long }}.
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System &middot; Concierge CFO for India's MSMEs</span><span>Page 4 of 4 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+</body>
+</html>

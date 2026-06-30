@@ -14,11 +14,15 @@
 # colours and pill CSS classes are derived HERE to match the template's design —
 # the template only renders pre-computed strings.
 
-from datetime import datetime, date
+from datetime import datetime
 import re
 
 from routers import client360 as _c360
 from services import score_service as _ss
+from reports.format import (
+    inr as _inr, cr as _cr, pct1 as _pct1,
+    fmt_long as _fmt_long, fmt_med as _fmt_med, fmt_med_str as _fmt_med_str,
+)
 
 # template CSS custom-property names (so bar colours are derived here, not inline)
 _TEAL = "var(--teal)"
@@ -29,58 +33,13 @@ _BAND_WORD = {"EXCELLENT": "Excellent", "GOOD": "Good", "MEDIUM": "Medium", "POO
 _BAND_TIER = {"EXCELLENT": "A", "GOOD": "B", "MEDIUM": "C", "POOR": "D"}
 
 
-# ── formatting helpers ──────────────────────────────────────────────────────
-def _inr(n) -> str:
-    """Indian-grouped rupees, e.g. 24444909 -> '₹2,44,44,909'. None -> '—'."""
-    if n is None:
-        return "—"
-    try:
-        n = int(round(float(n)))
-    except (TypeError, ValueError):
-        return "—"
-    neg = n < 0
-    s = str(abs(n))
-    if len(s) > 3:
-        head, tail = s[:-3], s[-3:]
-        head = re.sub(r"(?<=\d)(?=(\d\d)+$)", ",", head)
-        s = f"{head},{tail}"
-    return f"{'−' if neg else ''}₹{s}"
-
-
-def _cr(n) -> str:
-    if n is None:
-        return "—"
-    try:
-        return f"{float(n) / 1e7:.2f}"
-    except (TypeError, ValueError):
-        return "—"
-
-
-def _pct1(x) -> str:
-    return "—" if x is None else f"{x:.1f}%"
-
-
+# ── formatting helpers (shared formatters live in reports.format) ───────────
 def _num(d: dict, k: str):
     v = (d or {}).get(k)
     try:
         return None if v is None else float(v)
     except (TypeError, ValueError):
         return None
-
-
-def _fmt_long(d: date) -> str:
-    return f"{d.day} {d.strftime('%B %Y')}"      # '30 June 2026'
-
-
-def _fmt_med(d: date) -> str:
-    return f"{d.day} {d.strftime('%b %Y')}"       # '30 Jun 2026'
-
-
-def _fmt_med_str(s) -> str:
-    try:
-        return _fmt_med(datetime.fromisoformat(str(s)[:10]).date())
-    except Exception:
-        return str(s or "")
 
 
 def _gap_str(gap) -> str:

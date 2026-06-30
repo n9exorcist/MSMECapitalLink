@@ -72,6 +72,16 @@ class CreditorIn(BaseModel):
     due_date: Optional[str] = None
 
 
+class ProposalIn(BaseModel):
+    facility_type: Optional[str] = None        # 'CC' | 'OD' | 'Term Loan' | 'CC + Term Loan'
+    amount_requested: float = 0
+    purpose: Optional[str] = None
+    tenor_months: Optional[int] = None
+    rate_expectation: Optional[str] = None
+    security_offered: Optional[str] = None
+    security_value: float = 0
+
+
 class CreditBureauIn(BaseModel):
     score: int
     bureau: str = "CIBIL"
@@ -112,6 +122,18 @@ def get_entry(msme_id: str, db=Depends(get_db)):
                .order("amount_outstanding", desc=True).execute().data or [])
     creditors = (db.table("creditors").select("*").eq("msme_id", msme_id)
                  .order("amount_due", desc=True).execute().data or [])
+    # proposal + existing loans — wrapped so a missing loan_proposals table (pre-DDL)
+    # never breaks the whole entry screen.
+    try:
+        prop = (db.table("loan_proposals").select("*").eq("msme_id", msme_id)
+                .order("created_at", desc=True).limit(1).execute().data or [])
+    except Exception:
+        prop = []
+    try:
+        loans = (db.table("loans").select("*").eq("msme_id", msme_id)
+                 .order("sanctioned_amount", desc=True).execute().data or [])
+    except Exception:
+        loans = []
     return {
 
         "company": ent.get("company_name") or ent.get("name"),
@@ -119,6 +141,8 @@ def get_entry(msme_id: str, db=Depends(get_db)):
         "financials": fin[0] if fin else None,
         "debtors": debtors,
         "creditors": creditors,
+        "proposal": prop[0] if prop else None,
+        "loans": loans,
     }
 
 
@@ -170,6 +194,23 @@ def add_creditor(msme_id: str, body: CreditorIn, db=Depends(get_db)):
     row = body.model_dump()
     row["msme_id"] = msme_id
     db.table("creditors").insert(row).execute()
+    return {"ok": True}
+
+
+@router.post("/{msme_id}/proposal")
+def save_proposal(msme_id: str, body: ProposalIn, db=Depends(get_db)):
+    """Save the credit ask. One current proposal per client (select-then-write, like
+    financials — no DB unique constraint needed)."""
+    payload = body.model_dump()
+    payload["msme_id"] = msme_id
+    now = datetime.now(timezone.utc).isoformat()
+    existing = (db.table("loan_proposals").select("id")
+                .eq("msme_id", msme_id).execute().data or [])
+    if existing:
+        db.table("loan_proposals").update({**payload, "updated_at": now}) \
+          .eq("msme_id", msme_id).execute()
+    else:
+        db.table("loan_proposals").insert(payload).execute()
     return {"ok": True}
 
 

@@ -57,13 +57,14 @@ export const listClients = (): Promise<{ clients: ClientRow[] }> => get('/msme/c
 export const getClient360 = (id: string): Promise<Client360Data> =>
     get(`/msme/${id}/client360`);
 
-// ── Reports ──
-// Fetches the Health Report PDF (auth header included so it survives an auth flip)
+// ── Documents ──
+// Fetches a generated document PDF (auth header included so it survives an auth flip)
 // and saves it as a .pdf file via a download anchor. The route sends
-// Content-Disposition: attachment with the filename.
-export async function downloadHealthReport(msmeId: string): Promise<void> {
+// Content-Disposition: attachment with the filename. `docKey` matches the backend
+// registry (reports/registry.py), e.g. 'health'.
+export async function downloadDocument(msmeId: string, docKey: string): Promise<void> {
     const headers = await authHeaders();
-    const res = await fetch(`${API}/msme/${msmeId}/reports/health`, { headers });
+    const res = await fetch(`${API}/msme/${msmeId}/documents/${docKey}`, { headers });
     if (res.status === 401) {
         if (typeof window !== 'undefined') {
             await supabase.auth.signOut();
@@ -81,7 +82,7 @@ export async function downloadHealthReport(msmeId: string): Promise<void> {
     // prefer the server-provided filename; fall back to a sensible default
     const cd = res.headers.get('Content-Disposition') ?? '';
     const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
-    const filename = match ? decodeURIComponent(match[1]) : `MFOS_Health_Report_${msmeId}.pdf`;
+    const filename = match ? decodeURIComponent(match[1]) : `MFOS_${docKey}_${msmeId}.pdf`;
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -100,10 +101,16 @@ export interface EntryData {
     financials: Row | null;
     debtors: Row[];
     creditors: Row[];
+    proposal: Row | null;
+    loans: Row[];
 }
 
 export const getEntry = (msmeId: string): Promise<EntryData> =>
     get(`/msme/${msmeId}/entry`);
+
+// ── Loan proposal (the credit ask, for the Bank Proposal doc) ──
+export const saveProposal = (msmeId: string, body: Row) =>
+    post(`/msme/${msmeId}/proposal`, body);
 
 export const saveFinancials = (
     msmeId: string,

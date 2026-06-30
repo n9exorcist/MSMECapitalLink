@@ -98,28 +98,16 @@ def _previous_anchor(db, msme_id: str, now: datetime) -> Optional[int]:
 
 
 def refresh_score(db, msme_id: str) -> dict:
-    fin = _latest_financials(db, msme_id)
-    if not fin:
-        return {"score": None, "band": None, "delta": None,
-                "error": "No financials on record for this client."}
+    # Compute via the shared read-model (entity + financials + bureau overlay + engine).
+    # Lazy import breaks the score_service ↔ read_model cycle. This function owns only
+    # PERSISTENCE (msme_entities + scores + score_history) and the score delta.
+    from services.read_model import build_read_model, ReadModelError
+    try:
+        rm = build_read_model(db, msme_id)
+    except ReadModelError as e:
+        return {"score": None, "band": None, "delta": None, "error": str(e)}
 
-    ent = _entity(db, msme_id)
-    metrics = _to_metrics(fin)
-    # Prefer a real bureau pull over the legacy msme_financials.cibil_score.
-    # Falls back to the column when no pull exists, so nothing breaks mid-migration.
-    pull = _latest_bureau_pull(db, msme_id)
-    if pull and pull.get("score") is not None:
-        metrics.cibil_score = int(pull["score"])
-    sector = ent.get("industry") or ent.get("sector")
-    # CHANGED: None when unknown (was `or 0` → assumed "no bounces")
-    bounces = _opt_float(fin, "bounces_per_month")
-    docs = float(fin.get("docs_ready_pct") or 80)
-    compliance = float(fin.get("compliance_pct") or 90)
-
-    cash_pos = _latest_cash_position(db, msme_id)   # NEW: bank-statement evidence
-    result = calculate_composite_score(
-        metrics, bounces=bounces, docs_ready=docs, compliance=compliance, sector=sector,
-        cash_position=cash_pos)
+    result = rm.score
 
     now = datetime.now(timezone.utc)
     ts = now.isoformat()

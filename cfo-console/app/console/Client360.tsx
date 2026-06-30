@@ -5,7 +5,20 @@
 
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import CreditBureauPanel from './CreditBureauPanel';
-import { downloadHealthReport } from '../lib/api';
+import { downloadDocument } from '../lib/api';
+
+// Document tiles. `key` matches the backend registry (reports/registry.py); tiles with a
+// key generate a live PDF, the rest are coming soon.
+const DOC_TILES: { title: string; sub: string; key?: string }[] = [
+  { title: 'MSME Health Report', sub: '4–9 pp · for the owner', key: 'health' },
+  { title: 'Bank Proposal Pack', sub: '25–30 pp · credit committee', key: 'bank_proposal' },
+  { title: 'CMA Data Sheet (IBA)', sub: '6–8 pp · bank format' },
+  { title: 'Project Report / DPR', sub: '20–40 pp · term loan' },
+  { title: 'WC Limit Renewal', sub: '5–8 pp · CC/OD renewal', key: 'wc_renewal' },
+  { title: 'Migration Pathway Plan', sub: '6–8 pp · NBFC → PSU', key: 'migration' },
+  { title: 'Green Opportunity Report', sub: '8–12 pp · solar / CBAM' },
+  { title: 'Annual Business Review', sub: '10–15 pp · year-end', key: 'annual_review' },
+];
 
 type Pill = 'ok' | 'near' | 'warn' | 'crit' | 'na';
 interface Component { name: string; weight: number; score: number | null; evidenced: boolean }
@@ -89,15 +102,15 @@ export default function Client360({
 }) {
   const d = data;
 
-  // "MSME Health Report" tile → live PDF. Other tiles are not wired yet.
+  // Tiles with a registry key generate a live PDF; the rest are coming soon.
   const [genTile, setGenTile] = useState<string | null>(null);
   const [genErr, setGenErr] = useState<string | null>(null);
-  async function handleGenerate(title: string) {
-    if (title !== 'MSME Health Report' || !msmeId) return;
-    setGenTile(title);
+  async function handleGenerate(docKey: string) {
+    if (!msmeId) return;
+    setGenTile(docKey);
     setGenErr(null);
     try {
-      await downloadHealthReport(msmeId);
+      await downloadDocument(msmeId, docKey);
     } catch (e) {
       setGenErr((e as Error).message);
     } finally {
@@ -295,26 +308,26 @@ export default function Client360({
           <div className="docwall">
             <div className="sec-h"><h3>Generate Documents</h3><span className="hint">From this client&apos;s data · §8</span></div>
             <div className="tiles2">
-              {[['MSME Health Report', '4–9 pp · for the owner'], ['Bank Proposal Pack', '25–30 pp · credit committee'],
-              ['CMA Data Sheet (IBA)', '6–8 pp · bank format'], ['Project Report / DPR', '20–40 pp · term loan'],
-              ['WC Limit Renewal', '5–8 pp · CC/OD renewal'], ['Migration Pathway Plan', '6–8 pp · NBFC → PSU'],
-              ['Green Opportunity Report', '8–12 pp · solar / CBAM'], ['Annual Business Review', '10–15 pp · year-end']
-              ].map(([t, sub]) => {
-                const live = t === 'MSME Health Report';
-                const busy = genTile === t;
+              {DOC_TILES.map((tile) => {
+                const live = !!tile.key;
+                const busy = genTile === tile.key;
                 return (
                   <div
                     className="dtile"
-                    key={t}
-                    onClick={live ? () => handleGenerate(t) : undefined}
-                    style={live ? undefined : { opacity: 0.6 }}
+                    key={tile.title}
+                    onClick={live ? () => handleGenerate(tile.key as string) : undefined}
+                    style={live ? undefined : { opacity: 0.6, cursor: 'default' }}
                   >
-                    <div className="t">{t}</div><div className="d">{sub}</div>
+                    <div className="t">{tile.title}</div><div className="d">{tile.sub}</div>
                     <div className="act">
-                      <span className="gen">{busy ? 'Generating…' : 'Generate'}</span>
+                      <span className="gen" style={live ? undefined : { background: 'var(--muted)' }}>
+                        {busy ? 'Generating…' : live ? 'Generate' : 'Coming soon'}
+                      </span>
                       <span className="ic">i</span>
                     </div>
-                    {live && genErr && <div className="d" style={{ color: 'var(--red)' }}>{genErr}</div>}
+                    {live && busy === false && genErr && genTile === null && (
+                      <div className="d" style={{ color: 'var(--red)' }}>{genErr}</div>
+                    )}
                   </div>
                 );
               })}

@@ -1,15 +1,14 @@
 # backend/routers/reports.py
-# GET /msme/{msme_id}/reports/health → builds the report context (reusing the SAME
-# client360 computation), renders the Jinja template, and returns an A4 PDF rendered
-# via Chromium/Playwright.
+# Document generation: GET /msme/{msme_id}/documents/{doc_key} builds a document's
+# context (from the shared read-model), renders its Jinja template to A4 PDF via the
+# warm Chromium worker, and streams it back as a download. Documents are registered in
+# reports/registry.py — this route is generic over all of them.
 #
-# This handler is SYNC (`def`, not `async def`) on purpose: render uses the sync
-# Playwright API, which cannot run inside the event loop. FastAPI runs sync handlers
-# in a worker thread, so launching Chromium here is safe.
+# GET /msme/{id}/reports/health is kept as a back-compat alias for the existing console
+# tile + owner-app wiring.
 #
-# Mount in main.py:
-#     from routers import reports
-#     app.include_router(reports.router)
+# Handlers are async and offload the blocking context build + render to a worker thread;
+# rendering itself happens in a separate process (see reports/render.py).
 
 import io
 import re
@@ -19,8 +18,9 @@ from fastapi.responses import StreamingResponse
 from fastapi.concurrency import run_in_threadpool
 
 from core.database import get_db
-from reports.context import build_health_report_context
-from reports.render import render_health_report_pdf_warm
+from reports.registry import get_spec, DocSpec
+from reports.render import render_html
+from reports.render_pool import render_pdf
 
 router = APIRouter(prefix="/msme", tags=["reports"])
 
@@ -32,28 +32,40 @@ def _slug(name: str) -> str:
     return s or "client"
 
 
-@router.get("/{msme_id}/reports/health")
-async def health_report(msme_id: str, db=Depends(get_db)):
-    # build_health_report_context does blocking Supabase calls — run it off the
-    # event loop so we don't stall the server while gathering the three sources.
+def _render(spec: DocSpec, context: dict) -> bytes:
+    return render_pdf(render_html(spec.template, context))
+
+
+async def _generate(spec: DocSpec, msme_id: str, db) -> StreamingResponse:
     try:
-        context = await run_in_threadpool(build_health_report_context, db, msme_id)
+        context = await run_in_threadpool(spec.context_builder, db, msme_id)
     except HTTPException:
         raise
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(500, f"Failed to build report context: {e!r}")
+        raise HTTPException(500, f"Failed to build {spec.key} document context: {e!r}")
 
-    # Render on the persistent warm worker (see render.py / render_pool.py) — the path
-    # that works under uvicorn --reload on Windows. Blocking, so offload it.
     try:
-        pdf = await run_in_threadpool(render_health_report_pdf_warm, context)
+        pdf = await run_in_threadpool(_render, spec, context)
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(500, f"Failed to render report PDF: {e!r}")
+        raise HTTPException(500, f"Failed to render {spec.key} PDF: {e!r}")
 
-    filename = f"MFOS_Health_Report_{_slug(context.get('client_name', ''))}.pdf"
+    filename = f"{spec.filename_prefix}_{_slug(context.get('client_name', ''))}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf),
         media_type="application/pdf",
-        # `attachment` → browsers download a .pdf file instead of rendering it inline.
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/{msme_id}/documents/{doc_key}")
+async def generate_document(msme_id: str, doc_key: str, db=Depends(get_db)):
+    spec = get_spec(doc_key)
+    if not spec:
+        raise HTTPException(404, f"Unknown document type: {doc_key}")
+    return await _generate(spec, msme_id, db)
+
+
+@router.get("/{msme_id}/reports/health")
+async def health_report(msme_id: str, db=Depends(get_db)):
+    # back-compat alias → the registered "health" document
+    return await _generate(get_spec("health"), msme_id, db)

@@ -10,7 +10,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 // Relative import works with no tsconfig change. If you set up the "@/*" alias
 // to point at ./app/*, you can use: import { ... } from '@/lib/api';
-import { getEntry, saveFinancials, saveDebtor, saveCreditor } from '../../lib/api';
+import { getEntry, saveFinancials, saveDebtor, saveCreditor, saveProposal } from '../../lib/api';
 import Client360Live from '../Client360Live';
 import DocumentUpload from '../DocumentUpload';
 
@@ -20,7 +20,7 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'overview' | 'financials' | 'debtors' | 'creditors' | 'documents';
+type Tab = 'overview' | 'financials' | 'proposal' | 'debtors' | 'creditors' | 'documents';
 type Msg = { kind: 'ok' | 'err'; text: string };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
@@ -92,6 +92,17 @@ const disabledBtnStyle: CSSProperties = { background: C.muted, color: '#fff' };
 const inr = (v: number | string | null | undefined) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 const toNum = (v: string) => (v.trim() === '' ? 0 : Number(v));
 
+type Row = Record<string, string | number | boolean | null | undefined>;
+const propFromRow = (p: Row | null) => ({
+  facility_type: p?.facility_type ? String(p.facility_type) : 'CC / OD',
+  amount_requested: p?.amount_requested != null ? String(p.amount_requested) : '',
+  purpose: p?.purpose ? String(p.purpose) : 'Working capital',
+  tenor_months: p?.tenor_months != null ? String(p.tenor_months) : '',
+  rate_expectation: p?.rate_expectation ? String(p.rate_expectation) : '',
+  security_offered: p?.security_offered ? String(p.security_offered) : '',
+  security_value: p?.security_value != null ? String(p.security_value) : '',
+});
+
 export default function ConsolePage() {
   const params = useParams<{ msmeId: string }>();
   const routeId = (params?.msmeId as string) || '';
@@ -113,6 +124,10 @@ export default function ConsolePage() {
   const [creditors, setCreditors] = useState<Creditor[]>([]);
   const [newDebtor, setNewDebtor] = useState({ name: '', amount_outstanding: '', days_outstanding: '' });
   const [newCreditor, setNewCreditor] = useState({ name: '', amount_due: '', due_date: '' });
+  const [proposal, setProposal] = useState({
+    facility_type: 'CC / OD', amount_requested: '', purpose: 'Working capital',
+    tenor_months: '', rate_expectation: '', security_offered: '', security_value: '',
+  });
 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
@@ -125,6 +140,7 @@ export default function ConsolePage() {
       setMsg(null); // after await — not a synchronous setState in the effect
       setDebtors(d.debtors || []);
       setCreditors(d.creditors || []);
+      if (d.proposal) setProposal(propFromRow(d.proposal));
       const f = d.financials;
       if (f) {
         setFin(Object.fromEntries(FIN_KEYS.map((k) => [k, f[k] != null ? String(f[k]) : ''])));
@@ -153,6 +169,7 @@ export default function ConsolePage() {
         setMsg(null);
         setDebtors(d.debtors || []);
         setCreditors(d.creditors || []);
+        if (d.proposal) setProposal(propFromRow(d.proposal));
         const f = d.financials;
         if (f) {
           setFin(Object.fromEntries(FIN_KEYS.map((k) => [k, f[k] != null ? String(f[k]) : ''])));
@@ -184,6 +201,27 @@ export default function ConsolePage() {
       const s = res.score;
       setRefreshKey((k) => k + 1); // re-fetch the live header so it reflects the new score
       setMsg({ kind: 'ok', text: `Saved. Score recomputed: ${s.score}/100 (${s.band}).` });
+    } catch (e) {
+      setMsg({ kind: 'err', text: `Save failed: ${(e as Error).message}` });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSaveProposal() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await saveProposal(msmeId, {
+        facility_type: proposal.facility_type || null,
+        amount_requested: toNum(proposal.amount_requested),
+        purpose: proposal.purpose || null,
+        tenor_months: proposal.tenor_months ? Number(proposal.tenor_months) : null,
+        rate_expectation: proposal.rate_expectation || null,
+        security_offered: proposal.security_offered || null,
+        security_value: toNum(proposal.security_value),
+      });
+      setMsg({ kind: 'ok', text: 'Proposal saved. It now feeds the Bank Proposal document.' });
     } catch (e) {
       setMsg({ kind: 'err', text: `Save failed: ${(e as Error).message}` });
     } finally {
@@ -236,6 +274,7 @@ export default function ConsolePage() {
       <div className="flex min-w-max">
         <TabBtn id="overview" label="Overview" active={tab} onSelect={setTab} />
         <TabBtn id="financials" label="Financials" active={tab} onSelect={setTab} />
+        <TabBtn id="proposal" label="Proposal" active={tab} onSelect={setTab} />
         <TabBtn id="debtors" label={`Money In (${debtors.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="creditors" label={`Money Out (${creditors.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="documents" label="Documents" active={tab} onSelect={setTab} />
@@ -345,6 +384,65 @@ export default function ConsolePage() {
                     </button>
                     <span style={{ color: C.muted }} className="text-xs">
                       Enter all amounts in rupees. Saving recomputes this client&apos;s health score instantly.
+                    </span>
+                  </div>
+                </section>
+              )}
+
+              {/* PROPOSAL — the credit ask (feeds the Bank Proposal document) */}
+              {tab === 'proposal' && (
+                <section className="space-y-5 rise">
+                  <div className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+                    <div className="eyebrow mb-3">The credit ask</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Field label="Facility type">
+                        <select className={inputCls} style={inputStyle} value={proposal.facility_type}
+                          onChange={(e) => setProposal({ ...proposal, facility_type: e.target.value })}>
+                          <option>CC / OD</option><option>CC</option><option>OD</option>
+                          <option>Term Loan</option><option>CC + Term Loan</option>
+                        </select>
+                      </Field>
+                      <Field label="Amount requested (₹)">
+                        <input className={inputCls} style={inputStyle} inputMode="numeric"
+                          value={proposal.amount_requested} onChange={(e) => setProposal({ ...proposal, amount_requested: e.target.value })} />
+                      </Field>
+                      <Field label="Purpose">
+                        <select className={inputCls} style={inputStyle} value={proposal.purpose}
+                          onChange={(e) => setProposal({ ...proposal, purpose: e.target.value })}>
+                          <option>Working capital</option><option>Capex / machinery</option>
+                          <option>Business expansion</option><option>Project finance</option>
+                        </select>
+                      </Field>
+                      <Field label="Tenor (months · term loans only)">
+                        <input className={inputCls} style={inputStyle} inputMode="numeric"
+                          value={proposal.tenor_months} onChange={(e) => setProposal({ ...proposal, tenor_months: e.target.value })} />
+                      </Field>
+                      <Field label="Indicative rate (e.g. 9.0–10.5%)">
+                        <input className={inputCls} style={inputStyle}
+                          value={proposal.rate_expectation} onChange={(e) => setProposal({ ...proposal, rate_expectation: e.target.value })} />
+                      </Field>
+                      <Field label="Security value (₹)">
+                        <input className={inputCls} style={inputStyle} inputMode="numeric"
+                          value={proposal.security_value} onChange={(e) => setProposal({ ...proposal, security_value: e.target.value })} />
+                      </Field>
+                    </div>
+                    <div className="mt-3">
+                      <Field label="Security offered">
+                        <input className={inputCls} style={inputStyle} placeholder="e.g. Hypothecation of stock & book debts; collateral property…"
+                          value={proposal.security_offered} onChange={(e) => setProposal({ ...proposal, security_offered: e.target.value })} />
+                      </Field>
+                    </div>
+                  </div>
+                  <div className="save-bar rounded-2xl px-4 py-3 mt-1 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <button
+                      onClick={onSaveProposal} disabled={busy || !msmeId}
+                      style={busy || !msmeId ? disabledBtnStyle : tealBtnStyle}
+                      className="w-full sm:w-auto rounded-xl px-6 py-3 text-sm font-bold transition-transform active:translate-y-px disabled:cursor-not-allowed"
+                    >
+                      {busy ? 'Saving…' : 'Save proposal'}
+                    </button>
+                    <span style={{ color: C.muted }} className="text-xs">
+                      Feeds the Bank Proposal document. Leave blank and it derives the limit from MPBF instead.
                     </span>
                   </div>
                 </section>
