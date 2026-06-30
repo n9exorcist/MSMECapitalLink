@@ -150,7 +150,7 @@ def client360(msme_id: str, db=Depends(get_db)):
             "peak": v == mx,
         } for row, v in zip(monthly, vals)]
         trend_unit = "₹ L"
-        trend_note = f"Monthly GSTR-1 revenue · FY total ≈ ₹{(sum(vals) / 1e7):.2f} Cr ({len(vals)} months)."
+        trend_note = f"Monthly GSTR-3B revenue · FY2025-26 total ≈ ₹{(sum(vals) / 1e7):.2f} Cr ({len(vals)} months)."
     else:
         fins = (db.table("msme_financials")
                 .select("period_label,period_year,period_month,projected_annual_turnover")

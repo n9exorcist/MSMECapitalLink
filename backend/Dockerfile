@@ -27,6 +27,9 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Install the Chromium browser + its OS deps for Playwright HTML→PDF rendering
+RUN playwright install --with-deps chromium
+
 # Copy the rest of the application code
 COPY . .
 

@@ -54,6 +54,12 @@ export const listClients = (): Promise<{ clients: ClientRow[] }> => get('/msme/c
 export const getClient360 = (id: string): Promise<Client360Data> =>
     get(`/msme/${id}/client360`);
 
+// ── Reports ──
+// Direct URL to the Health Report PDF (route is unauthenticated in the prototype);
+// the owner app opens it with Linking.openURL so the device browser renders/saves it.
+export const healthReportUrl = (msmeId: string): string =>
+    `${API}/msme/${msmeId}/reports/health`;
+
 // ── Per-client read + writes ──
 export interface EntryData {
     company: string | null;

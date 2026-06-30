@@ -3,8 +3,9 @@
 // §4 deep-dive "Overview" — dense banker view. Data is props, defaulted to the
 // real Sri Sai extraction; <Client360Live> passes live `data` from /client360.
 
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import CreditBureauPanel from './CreditBureauPanel';
+import { openHealthReport } from '../lib/api';
 
 type Pill = 'ok' | 'near' | 'warn' | 'crit' | 'na';
 interface Component { name: string; weight: number; score: number | null; evidenced: boolean }
@@ -87,6 +88,23 @@ export default function Client360({
   onBureauSaved?: () => void;
 }) {
   const d = data;
+
+  // "MSME Health Report" tile → live PDF. Other tiles are not wired yet.
+  const [genTile, setGenTile] = useState<string | null>(null);
+  const [genErr, setGenErr] = useState<string | null>(null);
+  async function handleGenerate(title: string) {
+    if (title !== 'MSME Health Report' || !msmeId) return;
+    setGenTile(title);
+    setGenErr(null);
+    try {
+      await openHealthReport(msmeId);
+    } catch (e) {
+      setGenErr((e as Error).message);
+    } finally {
+      setGenTile(null);
+    }
+  }
+
   return (
     <div className={`c360${headerOnly ? ' c360-head' : ''}`} style={rootVars}>
       {/* TOP BAR */}
@@ -281,12 +299,25 @@ export default function Client360({
               ['CMA Data Sheet (IBA)', '6–8 pp · bank format'], ['Project Report / DPR', '20–40 pp · term loan'],
               ['WC Limit Renewal', '5–8 pp · CC/OD renewal'], ['Migration Pathway Plan', '6–8 pp · NBFC → PSU'],
               ['Green Opportunity Report', '8–12 pp · solar / CBAM'], ['Annual Business Review', '10–15 pp · year-end']
-              ].map(([t, sub]) => (
-                <div className="dtile" key={t}>
-                  <div className="t">{t}</div><div className="d">{sub}</div>
-                  <div className="act"><span className="gen">Generate</span><span className="ic">i</span></div>
-                </div>
-              ))}
+              ].map(([t, sub]) => {
+                const live = t === 'MSME Health Report';
+                const busy = genTile === t;
+                return (
+                  <div
+                    className="dtile"
+                    key={t}
+                    onClick={live ? () => handleGenerate(t) : undefined}
+                    style={live ? undefined : { opacity: 0.6 }}
+                  >
+                    <div className="t">{t}</div><div className="d">{sub}</div>
+                    <div className="act">
+                      <span className="gen">{busy ? 'Generating…' : 'Generate'}</span>
+                      <span className="ic">i</span>
+                    </div>
+                    {live && genErr && <div className="d" style={{ color: 'var(--red)' }}>{genErr}</div>}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

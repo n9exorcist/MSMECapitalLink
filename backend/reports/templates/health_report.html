@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MFOS Financial Health Report — {{ client_name }}</title>
+<style>
+  :root{
+    --navy:#0B2E4F; --navy2:#103F6B; --ink:#0F172A; --sub:#475569; --muted:#8595A8;
+    --teal:#0F766E; --teal2:#14B8A6; --tealwash:#ECFDFA;
+    --amber:#B45309; --amberwash:#FFF7ED; --red:#C0392B; --redwash:#FDF2F0;
+    --green:#157F5B;
+    --line:#E2EAF4; --line2:#D3DEEC; --paper:#FFFFFF; --wash:#F5F8FC;
+  }
+  *{box-sizing:border-box;}
+  @page{ size:A4; margin:0; }
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    color:var(--ink); font-size:10.2px; line-height:1.5; -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .num{ font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+  .serif{ font-family:Georgia,"Times New Roman",serif; }
+
+  .page{
+    width:210mm; min-height:297mm; background:var(--paper);
+    page-break-after:always; position:relative; overflow:hidden;
+  }
+  .page:last-child{ page-break-after:auto; }
+  .pad{ padding:16mm 16mm 22mm; }
+
+  /* ---------- shared header / footer ---------- */
+  .runhead{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:1.5px solid var(--navy); padding-bottom:7px; margin-bottom:18px;
+  }
+  .runhead .eyebrow{ font-size:8.4px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--navy); }
+  .runhead .doc{ font-size:8.4px; font-weight:600; letter-spacing:.05em; color:var(--muted); }
+  .foot{
+    position:absolute; left:16mm; right:16mm; bottom:11mm;
+    display:flex; justify-content:space-between; align-items:center;
+    border-top:1px solid var(--line); padding-top:7px;
+    font-size:7.6px; color:var(--muted); letter-spacing:.02em;
+  }
+  .foot b{ color:var(--sub); font-weight:700; }
+
+  /* ---------- section heading ---------- */
+  .sec-no{ font-size:8px; font-weight:800; letter-spacing:.18em; color:var(--teal); text-transform:uppercase; }
+  h2.sec{ font-family:Georgia,serif; font-size:19px; font-weight:700; color:var(--navy); margin:2px 0 3px; letter-spacing:-.01em; }
+  .sec-sub{ font-size:9.4px; color:var(--sub); margin:0 0 16px; max-width:150mm; }
+
+  /* ledger double-rule */
+  .ledger{ border-top:2px solid var(--navy); border-bottom:0.8px solid var(--navy); height:3px; margin:14px 0; }
+
+  /* ============================================================= COVER */
+  .cover{
+    color:#EAF3FB;
+    background:
+      radial-gradient(680px 320px at 86% -8%, rgba(20,184,166,.22), transparent 60%),
+      radial-gradient(560px 360px at -8% 110%, rgba(94,234,212,.10), transparent 55%),
+      linear-gradient(158deg,#0A2A47 0%,var(--navy2) 60%,#0E3A60 100%);
+    padding:20mm 18mm;
+    display:flex; flex-direction:column; min-height:297mm;
+  }
+  .cv-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .brandmark{ display:flex; align-items:center; gap:11px; }
+  .brandmark .logo{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(180deg,var(--teal2),var(--teal));
+    display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,serif; font-weight:700; font-size:18px; color:#06231F;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .brandmark .bt{ font-family:Georgia,serif; font-size:17px; font-weight:700; letter-spacing:.02em; color:#fff; line-height:1; }
+  .brandmark .bs{ font-size:7.8px; font-weight:700; letter-spacing:.22em; color:#7FE3D4; text-transform:uppercase; margin-top:3px; }
+  .cv-meta{ text-align:right; font-size:8.2px; color:#9FC6E6; letter-spacing:.04em; line-height:1.7; }
+
+  .cv-kicker{ margin-top:46mm; font-size:9px; font-weight:800; letter-spacing:.3em; text-transform:uppercase; color:#6FD9C8; }
+  .cv-title{ font-family:Georgia,serif; font-size:40px; font-weight:700; line-height:1.05; color:#fff; margin:8px 0 0; letter-spacing:-.015em; }
+  .cv-title .thin{ display:block; font-size:23px; font-weight:400; color:#BFE0F5; margin-top:6px; letter-spacing:0; }
+
+  .cv-client{
+    margin-top:10mm; padding:16px 18px; border-radius:12px;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+  }
+  .cv-client .nm{ font-family:Georgia,serif; font-size:22px; font-weight:700; color:#fff; }
+  .cv-client .ow{ font-size:9.6px; color:#BFE0F5; margin-top:3px; }
+  .cv-client .row{ display:flex; gap:26px; margin-top:11px; flex-wrap:wrap; }
+  .cv-client .row .k{ font-size:7.6px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7FA8CC; }
+  .cv-client .row .v{ font-size:10px; color:#EAF3FB; font-weight:600; margin-top:1px; }
+
+  /* the verdict + seal */
+  .cv-verdict{ margin-top:auto; display:flex; align-items:flex-end; justify-content:space-between; gap:18px; }
+  .vbox .lab{ font-size:8.4px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#7FA8CC; }
+  .vbox .word{ font-family:Georgia,serif; font-size:46px; font-weight:700; color:#fff; line-height:1; margin-top:4px; }
+  .vbox .word .pts{ font-size:21px; color:#6FD9C8; font-weight:400; margin-left:8px; }
+  .vbox .band{ font-size:9px; color:#BFE0F5; margin-top:9px; letter-spacing:.02em; }
+  .vbox .band b{ color:#fff; }
+
+  .seal{
+    width:108px; height:108px; flex:0 0 auto; border-radius:50%;
+    border:2px solid rgba(127,227,212,.55); position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 38%, rgba(20,184,166,.20), rgba(11,46,79,.0));
+  }
+  .seal::before{ content:""; position:absolute; inset:7px; border-radius:50%; border:1px dashed rgba(127,227,212,.5); }
+  .seal .tick{ font-size:22px; color:#6FD9C8; line-height:1; }
+  .seal .s1{ font-size:9.5px; font-weight:800; letter-spacing:.12em; color:#fff; margin-top:3px; }
+  .seal .s2{ font-size:6.8px; font-weight:700; letter-spacing:.16em; color:#9FE6D9; text-transform:uppercase; margin-top:2px; text-align:center; }
+
+  /* ============================================================= EXEC SUMMARY */
+  .lead{ font-family:Georgia,serif; font-size:13.5px; line-height:1.55; color:var(--navy); margin:0 0 13px; }
+  .lead b{ color:var(--teal); }
+  p.body{ margin:0 0 10px; color:var(--ink); }
+  p.body b{ color:var(--navy); }
+
+  .swrap{ display:flex; gap:14px; margin-top:6px; }
+  .scol{ flex:1; border:1px solid var(--line); border-radius:11px; overflow:hidden; }
+  .scol .h{ padding:9px 13px; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .scol.good .h{ background:var(--tealwash); color:var(--teal); border-bottom:1px solid #BFEFE6; }
+  .scol.watch .h{ background:var(--amberwash); color:var(--amber); border-bottom:1px solid #FCE6C8; }
+  .scol ul{ margin:0; padding:11px 13px 12px 26px; }
+  .scol li{ font-size:9.4px; line-height:1.45; margin-bottom:7px; color:var(--ink); }
+  .scol li:last-child{ margin-bottom:0; }
+  .scol li b{ color:var(--navy); }
+
+  .pullbar{
+    display:flex; gap:0; margin:16px 0 0; border:1px solid var(--line); border-radius:11px; overflow:hidden;
+  }
+  .pullbar .cell{ flex:1; padding:12px 14px; border-right:1px solid var(--line); }
+  .pullbar .cell:last-child{ border-right:0; }
+  .pullbar .k{ font-size:7.8px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .pullbar .v{ font-family:Georgia,serif; font-size:21px; font-weight:700; color:var(--navy); margin-top:3px; }
+  .pullbar .v.tl{ color:var(--teal); }
+  .pullbar .s{ font-size:8px; color:var(--sub); margin-top:2px; }
+
+  /* ============================================================= TABLES */
+  table{ width:100%; border-collapse:collapse; }
+  .scard th{
+    font-size:8px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--muted);
+    text-align:right; padding:8px 4px; border-bottom:1.5px solid var(--navy);
+  }
+  .scard th:first-child{ text-align:left; }
+  .scard td{ padding:9px 4px; border-bottom:1px solid var(--line); text-align:right; font-size:10px; }
+  .scard td:first-child{ text-align:left; font-weight:600; color:var(--navy); }
+  .scard tr:last-child td{ border-bottom:0; }
+  .scard tfoot td{ border-top:2px solid var(--navy); border-bottom:0; padding-top:10px; font-weight:800; color:var(--navy); font-size:11px; }
+
+  /* inline mini bar inside scorecard */
+  .barcell{ width:30%; }
+  .track{ position:relative; height:7px; border-radius:4px; background:#EDF2F8; overflow:hidden; }
+  .track .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:4px; }
+  .track .tgt{ position:absolute; top:-2px; bottom:-2px; width:1.5px; background:var(--navy); opacity:.55; }
+
+  .pill{ display:inline-block; font-size:7.8px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:2.5px 8px; border-radius:20px; }
+  .p-ok{ color:var(--teal); background:var(--tealwash); }
+  .p-warn{ color:var(--amber); background:var(--amberwash); }
+  .p-crit{ color:var(--red); background:var(--redwash); }
+  .p-na{ color:var(--sub); background:var(--wash); }
+  .gap.neg{ color:var(--red); font-weight:700; }
+  .gap.pos{ color:var(--green); font-weight:700; }
+
+  .interp{ font-size:8.6px; color:var(--sub); text-align:left !important; line-height:1.4; padding-top:3px !important; }
+
+  /* WC cycle strip */
+  .wcwrap{ margin-top:20px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--wash); }
+  .wceyebrow{ font-size:8px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .wcrow{ display:flex; align-items:center; gap:9px; }
+  .wcbox{ background:#fff; border:1px solid var(--line2); border-radius:9px; padding:8px 12px; text-align:center; min-width:64px; }
+  .wcbox b{ display:block; font-family:Georgia,serif; font-size:18px; color:var(--navy); }
+  .wcbox span{ font-size:7.4px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .wcbox.tot{ border-color:#F0B86A; background:var(--amberwash); }
+  .wcbox.tot b{ color:var(--amber); }
+  .wcop{ font-family:Georgia,serif; font-size:18px; color:var(--muted); font-weight:700; }
+  .wcnote{ font-size:8.8px; color:var(--sub); margin-top:11px; }
+
+  /* ============================================================= FIN SNAPSHOT */
+  .twocol{ display:flex; gap:18px; }
+  .lcol{ flex:1; }
+  .kvtab{ width:100%; border-collapse:collapse; }
+  .kvtab td{ padding:6.5px 0; border-bottom:1px solid var(--line); font-size:9.6px; }
+  .kvtab td.k{ color:var(--sub); }
+  .kvtab td.v{ text-align:right; font-weight:700; color:var(--navy); }
+  .kvtab tr.head td{ border-bottom:1.5px solid var(--navy); font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding-top:0; }
+  .kvtab tr.sum td{ border-top:1.5px solid var(--navy); border-bottom:0; font-family:Georgia,serif; font-size:11px; color:var(--navy); padding-top:8px; }
+
+  /* GST trend bars */
+  .trendwrap{ margin-top:6px; border:1px solid var(--line); border-radius:12px; padding:15px 16px 12px; }
+  .bars{ display:flex; align-items:flex-end; gap:5px; height:96px; }
+  .bcol{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .bcol .bv{ font-size:6.6px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+  .bcol .bar{ width:100%; border-radius:4px 4px 0 0; background:linear-gradient(180deg,#3E80B8,var(--navy)); min-height:2px; }
+  .bcol.peak .bar{ background:linear-gradient(180deg,var(--teal2),var(--teal)); }
+  .bcol .bx{ font-size:7px; font-weight:700; color:var(--muted); margin-top:5px; }
+  .trendnote{ font-size:8.4px; color:var(--sub); margin-top:11px; }
+
+  /* ============================================================= RECO */
+  .recobox{
+    border:1.5px solid var(--teal); border-radius:14px; overflow:hidden; margin-bottom:18px;
+    box-shadow:0 1px 0 rgba(15,118,110,.04);
+  }
+  .recobox .rh{ background:linear-gradient(160deg,#0A2A47,var(--navy2)); color:#fff; padding:15px 18px; }
+  .recobox .rh .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#7FE3D4; }
+  .recobox .rh .big{ font-family:Georgia,serif; font-size:23px; font-weight:700; margin-top:4px; }
+  .recobox .rh .sub{ font-size:9px; color:#BFE0F5; margin-top:4px; }
+  .recobox .rb{ padding:13px 18px; display:flex; gap:22px; }
+  .recobox .rb .item .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .recobox .rb .item .v{ font-size:10px; font-weight:700; color:var(--navy); margin-top:2px; }
+
+  .steps{ counter-reset:step; }
+  .step{ display:flex; gap:13px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .step:last-child{ border-bottom:0; }
+  .step .no{
+    counter-increment:step; flex:0 0 auto; width:26px; height:26px; border-radius:50%;
+    background:var(--navy); color:#fff; font-family:Georgia,serif; font-weight:700; font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step .no::before{ content:counter(step); }
+  .step .txt .t{ font-size:10.4px; font-weight:800; color:var(--navy); }
+  .step .txt .d{ font-size:9.2px; color:var(--sub); margin-top:2px; line-height:1.45; }
+  .step .txt .d em{ color:var(--teal); font-style:normal; font-weight:700; }
+
+  .disclaimer{ margin-top:18px; padding:12px 14px; background:var(--wash); border-radius:10px; font-size:8px; color:var(--muted); line-height:1.5; }
+  .disclaimer b{ color:var(--sub); }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ PAGE 1 — COVER -->
+<section class="page cover">
+  <div class="cv-top">
+    <div class="brandmark">
+      <div class="logo">M</div>
+      <div>
+        <div class="bt">MFOS</div>
+        <div class="bs">MSME Financial OS</div>
+      </div>
+    </div>
+    <div class="cv-meta">
+      Prepared for the proprietor<br>
+      Assessment as of <b style="color:#EAF3FB">{{ period_label }}</b> (audited)<br>
+      Issued {{ issued_long }} &middot; Advisor: {{ advisor }}
+    </div>
+  </div>
+
+  <div class="cv-kicker">Credit-Readiness Assessment</div>
+  <div class="cv-title">Financial Health Report
+    <span class="thin">An independent read of your bank-readiness</span>
+  </div>
+
+  <div class="cv-client">
+    <div class="nm">{{ client_name }}</div>
+    <div class="ow">Proprietor: {{ owner }} &middot; {{ sector }} &middot; {{ msme_class }} enterprise</div>
+    <div class="row">
+      <div><div class="k">GSTIN</div><div class="v num">{{ gstin }}</div></div>
+      <div><div class="k">PAN</div><div class="v num">{{ pan }}</div></div>
+      <div><div class="k">Constitution</div><div class="v">{{ constitution }}</div></div>
+      <div><div class="k">Location</div><div class="v">{{ location }}</div></div>
+      <div><div class="k">Auditor</div><div class="v">{{ auditor }}</div></div>
+    </div>
+  </div>
+
+  <div class="cv-verdict">
+    <div class="vbox">
+      <div class="lab">Overall Health Verdict</div>
+      <div class="word">{{ band_word }}<span class="pts num">{{ score }}/100</span></div>
+      <div class="band">Band&nbsp;{{ band_tier }} equivalent &middot; <b>{% if certified %}Bank-ready{% else %}Provisional{% endif %}</b> &middot; {% if certified %}certified on bureau &amp; bank evidence{% else %}awaiting bureau &amp; bank evidence{% endif %}</div>
+    </div>
+    <div class="seal">
+      <div class="tick">&#10003;</div>
+      <div class="s1">{{ cert_word }}</div>
+      <div class="s2">{% if certified %}Bank-Ready{% else %}Provisional{% endif %}<br>{{ issued_med }}</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ PAGE 2 — SUMMARY -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Health Report</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+
+    <div class="sec-no">01 &mdash; In plain words</div>
+    <h2 class="sec">What this means for you</h2>
+
+    <p class="lead">Your business scores <b>{{ score }} out of 100 &mdash; {{ band_word }}</b>, and it is now <b>{% if certified %}certified bank-ready{% else %}provisional{% endif %}</b>. In a lender's eyes, {{ client_name }} is a strong file: the numbers hold up, the bank conduct is clean, and the proprietor's credit record is on file.</p>
+
+    <p class="body">Two things carry this score. First, your <b>banking discipline is strong ({{ banking_score }}/100)</b> &mdash; money is routed through the account and the conduct reads well. Second, your <b>GST filing is consistent ({{ gst_score }}/100)</b> &mdash; returns are in, month after month. With the proprietor's <b>CIBIL of {{ cibil }}</b> now recorded, the file moved from &ldquo;promising&rdquo; to genuinely <b>bankable</b>, which is what unlocks a mainstream bank at a sensible rate rather than an NBFC.</p>
+
+    <p class="body">The honest watch-points are <b>leverage and the working-capital cycle</b>. The business carries more outside borrowing relative to its own net worth than a bank likes to see, and a great deal of cash is locked up in customer dues &mdash; <b>&#8377;{{ receivables_cr }}&nbsp;Cr of receivables</b>, the single biggest drag on the cycle. Neither blocks a loan today; both are exactly where a small effort lifts you from a good file to a great one.</p>
+
+    <div class="swrap">
+      <div class="scol good">
+        <div class="h">What's working for you</div>
+        <ul>
+          <li><b>Clean bank conduct</b> &mdash; turnover is routed through the account; banking discipline scores {{ banking_score }}.</li>
+          <li><b>Spotless GST record</b> &mdash; consistent monthly filing; GST consistency at {{ gst_score }}.</li>
+          <li><b>Comfortable liquidity</b> &mdash; current ratio {{ current_ratio }} against a 1.33 norm; short-term dues are well covered.</li>
+          <li><b>Credit record on file</b> &mdash; proprietor CIBIL {{ cibil }}, which certifies the file as bank-ready.</li>
+        </ul>
+      </div>
+      <div class="scol watch">
+        <div class="h">Where to focus next</div>
+        <ul>
+          <li><b>Leverage is high</b> &mdash; outside liabilities are {{ tol_tnw }}&times; net worth (norm &le;3.00). Build net worth to ease it.</li>
+          <li><b>Cash is locked in receivables</b> &mdash; {{ debtor_days }} debtor-days dominate a {{ wc_total }}-day cycle. Tighten collections.</li>
+          <li><b>Thin margins</b> &mdash; net profit is ~{{ net_margin }} of turnover; worth protecting as you grow.</li>
+          <li><b>No term-loan data</b> &mdash; add EMI details so debt-service capacity (DSCR) can be assessed.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pullbar">
+      <div class="cell"><div class="k">Health score</div><div class="v tl num">{{ score }}<span style="font-size:11px;color:var(--muted);font-family:inherit">/100</span></div><div class="s">{{ band_word }} &middot; {% if certified %}certified{% else %}provisional{% endif %}</div></div>
+      <div class="cell"><div class="k">Bank-readiness</div><div class="v">{{ bank_ready_word }}</div><div class="s">{% if certified %}Bank-verified, CIBIL on file{% else %}Pending bureau / bank evidence{% endif %}</div></div>
+      <div class="cell"><div class="k">Indicative rate</div><div class="v num">{{ rate_range }}</div><div class="s">PSU bank, working capital</div></div>
+      <div class="cell"><div class="k">Data completeness</div><div class="v num">{{ data_completeness }}%</div><div class="s">All score inputs evidenced</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 2 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- ============================================================ PAGE 3 — SCORECARD -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Health Report</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+
+    <div class="sec-no">02 &mdash; The breakdown</div>
+    <h2 class="sec">Credit-Readiness Scorecard</h2>
+    <p class="sec-sub">The {{ score }} is a weighted blend of eight components a banker assesses. Each is scored 0&ndash;100 against a target of 80 (the bank-ready line). The bar shows where each sits; the marker is the target.</p>
+
+    <table class="scard">
+      <thead>
+        <tr><th>Component</th><th>Weight</th><th>Score</th><th class="barcell" style="text-align:left;padding-left:14px;">Against target (80)</th><th>Gap</th><th style="text-align:center;">Status</th></tr>
+      </thead>
+      <tbody>
+        {% for c in components %}
+        <tr>
+          <td>{{ c.name }}</td><td class="num">{{ c.weight }}%</td><td class="num">{{ c.score }}</td>
+          <td class="barcell" style="padding-left:14px;"><div class="track"><div class="fill" style="width:{{ c.bar_pct }}%;background:{{ c.bar_color }}"></div><div class="tgt" style="left:80%"></div></div></td>
+          <td class="num gap {{ c.gap_class }}">{{ c.gap }}</td><td style="text-align:center;"><span class="pill p-{{ c.status_class }}">{{ c.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr><td>Composite Health</td><td class="num">100%</td><td class="num">{{ score_1dp }}</td><td></td><td class="num gap {{ composite_gap_class }}">{{ composite_gap }}</td><td style="text-align:center;"><span class="pill p-{{ composite_status_class }}">{{ composite_status }}</span></td></tr>
+      </tfoot>
+    </table>
+
+    <p class="sec-sub" style="margin-top:16px;">Read it like this: six of eight components clear the bank-ready line, and the two that don't &mdash; <b>leverage</b> ({{ leverage_score }}) and <b>liquidity</b> ({{ liquidity_score }}, just shy) &mdash; are the same two themes the summary flagged. They drag, but the heavily-weighted components (banking 25%, GST 15%) carry the composite comfortably over 80.</p>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 3 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- ============================================================ PAGE 4 — RATIOS -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Health Report</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+
+    <div class="sec-no">03 &mdash; The banker's lens</div>
+    <h2 class="sec">Banker Ratios</h2>
+    <p class="sec-sub">The five ratios a credit officer checks first, computed from your {{ period_label }} audited accounts, each against its lending norm &mdash; with a plain reading of what it signals.</p>
+
+    <table class="scard">
+      <thead><tr><th>Ratio</th><th>Value</th><th>Norm</th><th style="text-align:center;">Verdict</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Current ratio</td><td class="num">{{ rb.cr.value }}</td><td class="num">{{ rb.cr.norm }}</td><td style="text-align:center;"><span class="pill p-{{ rb.cr.cls }}">{{ rb.cr.verdict }}</span></td>
+        </tr>
+        <tr><td colspan="4" class="interp">Short-term assets are {{ current_ratio }}&times; short-term dues &mdash; comfortable headroom to meet obligations as they fall due.</td></tr>
+
+        <tr>
+          <td>Interest coverage (ICR)</td><td class="num">{{ rb.icr.value }}</td><td class="num">{{ rb.icr.norm }}</td><td style="text-align:center;"><span class="pill p-{{ rb.icr.cls }}">{{ rb.icr.verdict }}</span></td>
+        </tr>
+        <tr><td colspan="4" class="interp">Operating profit covers interest {{ icr }}&times; over &mdash; the business services its current interest burden with room to spare.</td></tr>
+
+        <tr>
+          <td>TOL / TNW</td><td class="num">{{ rb.tol.value }}</td><td class="num">{{ rb.tol.norm }}</td><td style="text-align:center;"><span class="pill p-{{ rb.tol.cls }}">{{ rb.tol.verdict }}</span></td>
+        </tr>
+        <tr><td colspan="4" class="interp">Total outside liabilities are {{ tol_tnw }}&times; the proprietor's net worth, just over the 3.00 comfort line &mdash; leverage is the file's main soft spot. Building net worth (retained profit or capital infusion) brings this inside norm.</td></tr>
+
+        <tr>
+          <td>WC cycle (days)</td><td class="num">{{ rb.wc.value }}</td><td class="num">{{ rb.wc.norm }}</td><td style="text-align:center;"><span class="pill p-{{ rb.wc.cls }}">{{ rb.wc.verdict }}</span></td>
+        </tr>
+        <tr><td colspan="4" class="interp">Cash is tied up for {{ wc_total }} days from buying materials to collecting payment. Within the sector-aware band for works-contract ({{ rb.wc.norm }}), but near the edge &mdash; driven by slow receivables.</td></tr>
+
+        <tr>
+          <td>DSCR</td><td class="num">{{ rb.dscr.value }}</td><td class="num">{{ rb.dscr.norm }}</td><td style="text-align:center;"><span class="pill p-{{ rb.dscr.cls }}">{{ rb.dscr.verdict }}</span></td>
+        </tr>
+        <tr><td colspan="4" class="interp">Debt-service coverage needs term-loan EMI and interest figures, not yet on record. Required before assessing term-loan eligibility &mdash; see next steps.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="wcwrap">
+      <div class="wceyebrow">Working-capital cycle &mdash; where the {{ wc_total }} days come from</div>
+      <div class="wcrow">
+        <div class="wcbox"><b class="num">{{ wc_dso }}</b><span>Debtor days</span></div>
+        <div class="wcop">+</div>
+        <div class="wcbox"><b class="num">{{ wc_inv }}</b><span>Inventory</span></div>
+        <div class="wcop">&minus;</div>
+        <div class="wcbox"><b class="num">{{ wc_cred }}</b><span>Creditor</span></div>
+        <div class="wcop">=</div>
+        <div class="wcbox tot"><b class="num">{{ wc_total }}</b><span>Cycle</span></div>
+      </div>
+      <div class="wcnote">Receivables of <b>&#8377;{{ receivables_cr }}&nbsp;Cr</b> sit behind the {{ wc_dso }} debtor-days &mdash; the dominant strain on the cycle. Every 30 days shaved off collections frees roughly <b>&#8377;20&nbsp;L</b> of cash and improves both this cycle and your cash runway.</div>
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 4 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- ============================================================ PAGE 5 — FIN SNAPSHOT -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Health Report</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+
+    <div class="sec-no">04 &mdash; The numbers behind it</div>
+    <h2 class="sec">Financial Snapshot</h2>
+    <p class="sec-sub">Key figures from the {{ period_label }} audited statement ({{ auditor }}), and the rolling GST-declared revenue for the current year.</p>
+
+    <div class="twocol">
+      <div class="lcol">
+        <table class="kvtab">
+          <tr class="head"><td>Profit &amp; Loss</td><td style="text-align:right;">{{ period_label }}</td></tr>
+          <tr><td class="k">Turnover (sales)</td><td class="v num">{{ fin.turnover }}</td></tr>
+          <tr><td class="k">Purchases</td><td class="v num">{{ fin.purchases }}</td></tr>
+          <tr><td class="k">Gross profit</td><td class="v num">{{ fin.gross_profit }}</td></tr>
+          <tr><td class="k">Operating profit (EBIT)</td><td class="v num">{{ fin.ebit }}</td></tr>
+          <tr><td class="k">Interest</td><td class="v num">{{ fin.interest }}</td></tr>
+          <tr><td class="k">Depreciation</td><td class="v num">{{ fin.depreciation }}</td></tr>
+          <tr class="sum"><td>Net profit after tax</td><td class="v num" style="font-weight:700;">{{ fin.npat }}</td></tr>
+        </table>
+        <div style="font-size:8.4px;color:var(--sub);margin-top:8px;">Gross margin <b style="color:var(--navy)">{{ gross_margin }}</b> &middot; net margin <b style="color:var(--amber)">{{ net_margin }}</b> &mdash; healthy at the gross line, thin after costs.</div>
+      </div>
+
+      <div class="lcol">
+        <table class="kvtab">
+          <tr class="head"><td>Balance sheet</td><td style="text-align:right;">As at {{ bs_date }}</td></tr>
+          <tr><td class="k">Current assets</td><td class="v num">{{ fin.current_assets }}</td></tr>
+          <tr><td class="k">&nbsp;&nbsp;of which &mdash; sundry debtors</td><td class="v num">{{ fin.sundry_debtors }}</td></tr>
+          <tr><td class="k">&nbsp;&nbsp;of which &mdash; inventory</td><td class="v num">{{ fin.inventory }}</td></tr>
+          <tr><td class="k">Current liabilities</td><td class="v num">{{ fin.current_liabilities }}</td></tr>
+          <tr><td class="k">Total outside liabilities</td><td class="v num">{{ fin.tol }}</td></tr>
+          <tr><td class="k">Tangible net worth</td><td class="v num">{{ fin.tnw }}</td></tr>
+          <tr class="sum"><td>Borrowings (secured + unsecured)</td><td class="v num" style="font-weight:700;">{{ fin.borrowings }}</td></tr>
+        </table>
+        <div style="font-size:8.4px;color:var(--sub);margin-top:8px;">Receivables alone exceed a full year of turnover &mdash; the working-capital story in one line.</div>
+      </div>
+    </div>
+
+    <div class="trendwrap">
+      <div class="wceyebrow" style="margin-bottom:12px;">Monthly GST-declared revenue &mdash; {{ current_fy }} (&#8377; lakh)</div>
+      <div class="bars">
+        {% for t in trend %}
+        <div class="bcol{% if t.peak %} peak{% endif %}"><div class="bv">{{ t.value }}</div><div class="bar" style="height:{{ t.bar_h }}%"></div><div class="bx">{{ t.label }}</div></div>
+        {% endfor %}
+      </div>
+      <div class="trendnote">{{ current_fy }} GST-declared revenue totals <b>&#8377;{{ fy_gst_total_cr }}&nbsp;Cr</b> across 12 months &mdash; a quieter, project-driven year than the {{ period_label }} audited turnover of &#8377;{{ turnover_cr }}&nbsp;Cr. Revenue is lumpy (Jul and Mar peaks), typical of works-contract billing tied to project milestones.</div>
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 5 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- ============================================================ PAGE 6 — RECO + STEPS -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Health Report</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+
+    <div class="sec-no">05 &mdash; The recommendation</div>
+    <h2 class="sec">Where you can borrow &mdash; and how to do better</h2>
+
+    <div class="recobox">
+      <div class="rh">
+        <div class="lab">Indicative lender tier</div>
+        <div class="big">{{ lender_name }} &middot; {{ rate_range }} p.a.</div>
+        <div class="sub">Working-capital facility &middot; bank-verified conduct &middot; proprietor CIBIL {{ cibil }} on file</div>
+      </div>
+      <div class="rb">
+        <div class="item"><div class="k">Basis</div><div class="v">{{ period_label }} audited + 12-month GST + bank evidence</div></div>
+        <div class="item"><div class="k">Certification</div><div class="v">{% if certified %}Bank-ready (not provisional){% else %}Provisional{% endif %}</div></div>
+        <div class="item"><div class="k">Best-fit product</div><div class="v">CC / OD against receivables</div></div>
+      </div>
+    </div>
+
+    <p class="sec-sub" style="margin-bottom:14px;">The file qualifies for a mainstream bank today. These four moves lift it from a good file to a strong one &mdash; and would push the score toward the low-90s.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="no"></div>
+        <div class="txt">
+          <div class="t">Tighten collections on your largest debtors</div>
+          <div class="d">{{ debtor_days }} debtor-days drive the {{ wc_total }}-day cycle. Pulling collections in frees cash and lifts liquidity. <em>Impact: shorter WC cycle, better cash runway, higher liquidity score.</em></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no"></div>
+        <div class="txt">
+          <div class="t">Build net worth to ease leverage</div>
+          <div class="d">TOL/TNW at {{ tol_tnw }} is just over norm. Retaining profit or a small capital infusion brings it inside 3.00. <em>Impact: moves leverage quality off {{ leverage_score }}, the lowest-scoring component.</em></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no"></div>
+        <div class="txt">
+          <div class="t">Record your loan EMI &amp; interest split</div>
+          <div class="d">DSCR currently reads &ldquo;no data&rdquo; for want of term-loan figures. Adding them unlocks term-loan eligibility assessment. <em>Impact: completes the lending picture for any term borrowing.</em></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no"></div>
+        <div class="txt">
+          <div class="t">Protect the margin as you scale</div>
+          <div class="d">Net margin is ~{{ net_margin }}; gross margin is healthy at {{ gross_margin }}, so the gap is in overheads and finance cost. <em>Impact: a stronger profitability base and a more resilient file.</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <b>About this report.</b> Prepared by MFOS from the client's {{ period_label }} audited financials ({{ auditor }}), 12 months of GSTR-3B filings, bank-statement evidence, and a consumer credit-bureau pull (CIBIL {{ cibil }}, dated {{ cibil_date }}) for the proprietor. Scores are computed by the MFOS credit-readiness engine and are an advisory indication of bank-readiness, not a sanction or a guarantee of credit. Lending decisions rest with the lender. Rate ranges are indicative of prevailing PSU working-capital pricing for comparable files and are not an offer. Figures are as reported in the underlying documents. &middot; Generated {{ issued_long }}.
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System &middot; Concierge CFO for India's MSMEs</span><span>Page 6 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+</body>
+</html>

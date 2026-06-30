@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { ScrollView, View, Text, StyleSheet, SafeAreaView, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, SafeAreaView, Animated, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { C } from '@/constants/theme';
+import { healthReportUrl } from '../../lib/api';
 import { useMsmeData } from '../../hooks/useMsmeData';
 import { useLoans } from '../../hooks/useLoans';
 import { useMonthlySales } from '../../hooks/useMonthlySales';
@@ -107,6 +108,11 @@ export default function MoreScreen() {
     );
     // ↑↑↑ ADD HERE ↑↑↑
 
+    const openHealthReport = useCallback(() => {
+        if (!activeMsmeId) return;
+        Linking.openURL(healthReportUrl(activeMsmeId));
+    }, [activeMsmeId]);
+
     const loan = loans[0] ?? null; // primary = largest sanctioned
 
     const sanctioned = Number(loan?.sanctioned_amount) || 0;
@@ -184,6 +190,22 @@ export default function MoreScreen() {
         <SafeAreaView style={styles.safe}>
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 <Text style={styles.screenTitle}>More</Text>
+
+                {/* ── REPORTS ── */}
+                <Text style={styles.sectionTitle}>Reports</Text>
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={openHealthReport}
+                    disabled={!activeMsmeId}
+                    style={[styles.card, styles.reportCard, !activeMsmeId && { opacity: 0.5 }]}
+                >
+                    <View style={styles.reportIcon}><Text style={{ fontSize: 20 }}>📄</Text></View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.reportTitle}>Download Health Report</Text>
+                        <Text style={styles.reportSub}>Your full credit-readiness assessment (PDF)</Text>
+                    </View>
+                    <Text style={styles.reportChevron}>›</Text>
+                </TouchableOpacity>
 
                 {/* ── LOANS & EMI (live from `loans`) ── */}
                 <Text style={styles.sectionTitle}>Loans & EMI</Text>
@@ -338,6 +360,13 @@ const styles = StyleSheet.create({
         boxShadow: '0px 4px 12px rgba(11,46,79,0.04)',
     } as any,
     cardHero: { boxShadow: '0px 10px 24px rgba(11,46,79,0.10)' } as any,
+
+    // Reports
+    reportCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    reportIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.navyDark, alignItems: 'center', justifyContent: 'center' },
+    reportTitle: { fontSize: 15, fontWeight: '800', color: C.text },
+    reportSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+    reportChevron: { fontSize: 24, color: C.textMuted, fontWeight: '700' },
 
     // Loan card
     loanTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },

@@ -57,6 +57,29 @@ export const listClients = (): Promise<{ clients: ClientRow[] }> => get('/msme/c
 export const getClient360 = (id: string): Promise<Client360Data> =>
     get(`/msme/${id}/client360`);
 
+// ── Reports ──
+// Fetches the Health Report PDF (auth header included so it survives an auth flip)
+// and opens it inline in a new tab. The route returns Content-Disposition: inline.
+export async function openHealthReport(msmeId: string): Promise<void> {
+    const headers = await authHeaders();
+    const res = await fetch(`${API}/msme/${msmeId}/reports/health`, { headers });
+    if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+            await supabase.auth.signOut();
+            window.location.href = '/login';
+        }
+        throw new Error('Session expired — please sign in again.');
+    }
+    if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(detail || res.statusText);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 // ── Per-client read + writes ──
 export interface EntryData {
     company: string | null;
