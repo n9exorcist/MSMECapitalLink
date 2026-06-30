@@ -82,8 +82,9 @@ export const saveCreditBureauPull = (
         subject_type?: 'individual' | 'commercial';
         subject_name?: string;
         subject_pan?: string;
-        pulled_on?: string;        // 'YYYY-MM-DD'
+        pulled_on?: string;          // 'YYYY-MM-DD'
         control_number?: string;
+        report_doc_id?: string;      // documents.id from a prior uploadDocument call
     },
 ) => post(`/msme/${msmeId}/credit-bureau`, body);
 

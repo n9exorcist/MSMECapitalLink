@@ -81,6 +81,7 @@ class CreditBureauIn(BaseModel):
     pulled_on: Optional[str] = None           # 'YYYY-MM-DD'; defaults to today
     control_number: Optional[str] = None
     source: str = "manual_entry"
+    report_doc_id: Optional[str] = None       # documents.id of the uploaded CIBIL report (optional)
 
 
 @router.post("/{msme_id}/credit-bureau")
