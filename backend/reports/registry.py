@@ -15,6 +15,7 @@ from reports.annual_context import build_annual_review_context
 from reports.bank_proposal_context import build_bank_proposal_context
 from reports.cma_context import build_cma_context
 from reports.green_context import build_green_context
+from reports.dpr_context import build_dpr_context
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,14 @@ REGISTRY: Dict[str, DocSpec] = {
         template="green_opportunity.html",
         context_builder=build_green_context,
         filename_prefix="MFOS_Green_Opportunity",
+    ),
+    "dpr": DocSpec(
+        key="dpr",
+        title="Project Report / DPR",
+        subtitle="20–40 pp · term loan",
+        template="project_report.html",
+        context_builder=build_dpr_context,
+        filename_prefix="MFOS_Project_Report",
     ),
 }
 

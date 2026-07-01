@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MFOS Project Report — {{ client_name }}</title>
+<style>
+  :root{
+    --navy:#0B2E4F; --navy2:#103F6B; --ink:#0F172A; --sub:#475569; --muted:#8595A8;
+    --teal:#0F766E; --teal2:#14B8A6; --tealwash:#ECFDFA;
+    --amber:#B45309; --amberwash:#FFF7ED; --red:#C0392B; --redwash:#FDF2F0; --green:#157F5B;
+    --line:#E2EAF4; --line2:#D3DEEC; --paper:#FFFFFF; --wash:#F5F8FC;
+  }
+  *{box-sizing:border-box;}
+  @page{ size:A4; margin:0; }
+  html,body{margin:0;padding:0;}
+  body{ font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; color:var(--ink);
+    font-size:10.2px; line-height:1.5; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .num{ font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+  .page{ width:210mm; min-height:297mm; background:var(--paper); page-break-after:always; position:relative; overflow:hidden; }
+  .page:last-child{ page-break-after:auto; }
+  .pad{ padding:16mm 16mm 22mm; }
+  .runhead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:1.5px solid var(--navy); padding-bottom:7px; margin-bottom:18px; }
+  .runhead .eyebrow{ font-size:8.4px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--navy); }
+  .runhead .doc{ font-size:8.4px; font-weight:600; letter-spacing:.05em; color:var(--muted); }
+  .foot{ position:absolute; left:16mm; right:16mm; bottom:11mm; display:flex; justify-content:space-between; align-items:center;
+    border-top:1px solid var(--line); padding-top:7px; font-size:7.6px; color:var(--muted); letter-spacing:.02em; }
+  .foot b{ color:var(--sub); font-weight:700; }
+  .sec-no{ font-size:8px; font-weight:800; letter-spacing:.18em; color:var(--teal); text-transform:uppercase; }
+  h2.sec{ font-family:Georgia,serif; font-size:19px; font-weight:700; color:var(--navy); margin:2px 0 3px; letter-spacing:-.01em; }
+  .sec-sub{ font-size:9.4px; color:var(--sub); margin:0 0 16px; max-width:155mm; }
+  .lead{ font-family:Georgia,serif; font-size:12.5px; line-height:1.55; color:var(--navy); margin:0 0 14px; }
+
+  /* cover */
+  .cover{ color:#EAF3FB; background:
+      radial-gradient(680px 320px at 86% -8%, rgba(20,184,166,.22), transparent 60%),
+      radial-gradient(560px 360px at -8% 110%, rgba(94,234,212,.10), transparent 55%),
+      linear-gradient(158deg,#0A2A47 0%,var(--navy2) 60%,#0E3A60 100%);
+    padding:20mm 18mm; display:flex; flex-direction:column; min-height:297mm; }
+  .cv-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .brandmark{ display:flex; align-items:center; gap:11px; }
+  .brandmark .logo{ width:34px;height:34px;border-radius:9px; background:linear-gradient(180deg,var(--teal2),var(--teal));
+    display:flex;align-items:center;justify-content:center; font-family:Georgia,serif; font-weight:700; font-size:18px; color:#06231F; }
+  .brandmark .bt{ font-family:Georgia,serif; font-size:17px; font-weight:700; color:#fff; line-height:1; }
+  .brandmark .bs{ font-size:7.8px; font-weight:700; letter-spacing:.22em; color:#7FE3D4; text-transform:uppercase; margin-top:3px; }
+  .cv-meta{ text-align:right; font-size:8.2px; color:#9FC6E6; letter-spacing:.04em; line-height:1.7; }
+  .cv-kicker{ margin-top:46mm; font-size:9px; font-weight:800; letter-spacing:.3em; text-transform:uppercase; color:#6FD9C8; }
+  .cv-title{ font-family:Georgia,serif; font-size:40px; font-weight:700; line-height:1.05; color:#fff; margin:8px 0 0; letter-spacing:-.015em; }
+  .cv-title .thin{ display:block; font-size:21px; font-weight:400; color:#BFE0F5; margin-top:6px; }
+  .cv-client{ margin-top:10mm; padding:16px 18px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); }
+  .cv-client .nm{ font-family:Georgia,serif; font-size:22px; font-weight:700; color:#fff; }
+  .cv-client .ow{ font-size:9.6px; color:#BFE0F5; margin-top:3px; }
+  .cv-client .row{ display:flex; gap:26px; margin-top:11px; flex-wrap:wrap; }
+  .cv-client .row .k{ font-size:7.6px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7FA8CC; }
+  .cv-client .row .v{ font-size:10px; color:#EAF3FB; font-weight:600; margin-top:1px; }
+  .cv-verdict{ margin-top:auto; display:flex; align-items:flex-end; gap:14px; }
+  .vbox .lab{ font-size:8.4px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#7FA8CC; }
+  .vbox .word{ font-family:Georgia,serif; font-size:40px; font-weight:700; color:#fff; line-height:1; margin-top:4px; }
+  .vbox .word small{ font-size:18px; color:#6FD9C8; font-weight:400; margin-left:6px; }
+  .vbox .band{ font-size:9px; color:#BFE0F5; margin-top:9px; } .vbox .band b{ color:#fff; }
+  .vsep{ width:1px; align-self:stretch; background:rgba(255,255,255,.18); }
+
+  .hero{ display:flex; align-items:center; justify-content:space-between; gap:18px; border-radius:14px; padding:16px 20px; margin:2px 0 16px;
+    background:linear-gradient(160deg,#0A2A47,var(--navy2)); color:#fff; }
+  .hero .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#7FE3D4; }
+  .hero .big{ font-family:Georgia,serif; font-size:32px; font-weight:700; line-height:1; margin-top:4px; } .hero .big small{ font-size:15px; color:#BFE0F5; font-weight:400; margin-left:6px; }
+  .hero .sub{ font-size:9px; color:#BFE0F5; margin-top:5px; }
+  .hero .right{ text-align:right; } .hero .right .k{ font-size:7.4px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9FC6E6; }
+  .hero .right .v{ font-size:12px; font-weight:700; margin-top:2px; }
+
+  .twocol{ display:flex; gap:18px; } .lcol{ flex:1; }
+
+  .kvtab{ width:100%; border-collapse:collapse; }
+  .kvtab td{ padding:6.5px 0; border-bottom:1px solid var(--line); font-size:9.6px; }
+  .kvtab td.k{ color:var(--sub); } .kvtab td.v{ text-align:right; font-weight:700; color:var(--navy); }
+  .kvtab tr.head td{ border-bottom:1.5px solid var(--navy); font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding-top:0; }
+  .kvtab tr.sum td{ border-top:1.5px solid var(--navy); border-bottom:0; font-family:Georgia,serif; font-size:11px; color:var(--teal); padding-top:8px; font-weight:700; }
+
+  table.tb{ width:100%; border-collapse:collapse; }
+  .tb th{ font-size:8px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); text-align:right; padding:8px 5px; border-bottom:1.5px solid var(--navy); }
+  .tb th:first-child{ text-align:left; }
+  .tb td{ padding:7px 5px; border-bottom:1px solid var(--line); text-align:right; font-size:9.2px; }
+  .tb td:first-child{ text-align:left; font-weight:600; color:var(--navy); }
+  .tb tr.b td{ font-weight:800; border-bottom:1.5px solid var(--line2); }
+  .tb tr:last-child td{ border-bottom:0; }
+  td.ok{ color:var(--green); font-weight:800; } td.warn{ color:var(--amber); font-weight:800; }
+
+  .chips{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .chip{ flex:1; min-width:90px; border:1px solid var(--line); border-radius:11px; padding:11px 13px; }
+  .chip .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .chip .v{ font-family:Georgia,serif; font-size:18px; font-weight:700; color:var(--navy); margin-top:2px; }
+  .chip .s{ font-size:8px; color:var(--sub); margin-top:2px; }
+
+  .recobox{ border:1.5px solid var(--teal); border-radius:14px; overflow:hidden; margin:16px 0 4px; }
+  .recobox .rh{ background:linear-gradient(160deg,#0A2A47,var(--navy2)); color:#fff; padding:15px 18px; }
+  .recobox .rh .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#7FE3D4; }
+  .recobox .rh .big{ font-family:Georgia,serif; font-size:16px; font-weight:700; margin-top:4px; line-height:1.35; }
+  .recobox .rb{ padding:13px 18px; display:flex; gap:22px; }
+  .recobox .rb .item .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .recobox .rb .item .v{ font-size:10px; font-weight:700; color:var(--navy); margin-top:2px; }
+
+  ul.ass{ margin:8px 0 0; padding:0 0 0 18px; } ul.ass li{ font-size:8.8px; color:var(--sub); line-height:1.5; margin-bottom:5px; }
+  .note{ margin-top:14px; padding:11px 14px; background:var(--amberwash); border:1px solid #FCE6C8; border-radius:10px; font-size:8.6px; color:var(--sub); line-height:1.5; }
+  .note b{ color:var(--amber); }
+  .disclaimer{ margin-top:14px; padding:12px 14px; background:var(--wash); border-radius:10px; font-size:8px; color:var(--muted); line-height:1.5; }
+  .disclaimer b{ color:var(--sub); }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 — COVER -->
+<section class="page cover">
+  <div class="cv-top">
+    <div class="brandmark"><div class="logo">M</div><div><div class="bt">MFOS</div><div class="bs">MSME Financial OS</div></div></div>
+    <div class="cv-meta">Indicative debt-capacity feasibility<br>Financials as of <b style="color:#EAF3FB">{{ period_label }}</b> (audited)<br>Issued {{ issued_long }} &middot; Advisor: {{ advisor }}</div>
+  </div>
+  <div class="cv-kicker">Project Report &middot; Pre-project DPR</div>
+  <div class="cv-title">Project Report
+    <span class="thin">Indicative term-loan debt-capacity assessment</span>
+  </div>
+  <div class="cv-client">
+    <div class="nm">{{ client_name }}</div>
+    <div class="ow">Proprietor: {{ owner }} &middot; {{ sector }} &middot; {{ location }}</div>
+    <div class="row">
+      <div><div class="k">GSTIN</div><div class="v num">{{ gstin }}</div></div>
+      <div><div class="k">Turnover</div><div class="v num">&#8377;{{ turnover_cr }} Cr</div></div>
+      <div><div class="k">Health score</div><div class="v num">{{ score }}/100</div></div>
+    </div>
+  </div>
+  <div class="cv-verdict">
+    <div class="vbox"><div class="lab">Indicative term loan</div><div class="word num">&#8377;{{ loan_cr }}<small>Cr</small></div><div class="band">{{ term_rate }} &middot; {{ term_tenor }} yr &middot; DSCR &ge; {{ target_dscr }}</div></div>
+    <div class="vsep"></div>
+    <div class="vbox"><div class="lab">Project supported</div><div class="word num">&#8377;{{ project_cost_cr }}<small>Cr</small></div><div class="band">at {{ de_ratio }} debt : equity</div></div>
+  </div>
+</section>
+
+<!-- PAGE 2 — EXECUTIVE SUMMARY -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Project Report</div><div class="doc">{{ period_label }} &middot; Indicative</div></div>
+    <div class="sec-no">01 &mdash; The assessment</div>
+    <h2 class="sec">Executive Summary</h2>
+    <p class="lead">{{ summary }}</p>
+    <div class="hero">
+      <div><div class="lab">Indicative term loan</div><div class="big num">&#8377;{{ loan_cr }}<small>Cr</small></div><div class="sub">{{ term_rate }} p.a. &middot; {{ term_tenor }}-year tenor &middot; sized to {{ target_dscr }}× DSCR</div></div>
+      <div class="right"><div class="k">Min / avg DSCR</div><div class="v num">{{ min_dscr }} / {{ avg_dscr }}</div><div class="k" style="margin-top:7px;">Project supported</div><div class="v num">&#8377;{{ project_cost_cr }} Cr</div></div>
+    </div>
+    <div class="chips">
+      <div class="chip"><div class="k">Cash accrual (base)</div><div class="v num">{{ base_cash_accrual_inr }}</div><div class="s">PAT + depreciation</div></div>
+      <div class="chip"><div class="k">Term loan</div><div class="v num">{{ loan_inr }}</div><div class="s">{{ term_tenor }} yr @ {{ term_rate }}</div></div>
+      <div class="chip"><div class="k">Promoter margin</div><div class="v num">{{ promoter_inr }}</div><div class="s">{{ de_ratio }} D:E</div></div>
+    </div>
+    <div class="note"><b>Indicative — no project on file.</b> There is no defined capital project or term-loan application on record for this client. This report sizes a term loan to the business's own debt-service capacity to show how much it could prudently borrow. It is a pre-project debt-capacity note, not an engineering DPR — firm up the project scope, capex schedule and incremental returns before sanction.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 2 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 3 — PROMOTER & BUSINESS -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Project Report</div><div class="doc">{{ period_label }} &middot; Indicative</div></div>
+    <div class="sec-no">02 &mdash; The borrower</div>
+    <h2 class="sec">Promoter &amp; Business Profile</h2>
+    <div class="twocol">
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Business</td><td style="text-align:right;">Particulars</td></tr>
+        <tr><td class="k">Trade name</td><td class="v">{{ client_name }}</td></tr>
+        <tr><td class="k">Constitution</td><td class="v">{{ constitution }}</td></tr>
+        <tr><td class="k">Activity / sector</td><td class="v">{{ sector }}</td></tr>
+        <tr><td class="k">MSME class</td><td class="v">{{ msme_class }}</td></tr>
+        <tr><td class="k">Location</td><td class="v">{{ location }}</td></tr>
+      </table></div>
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Promoter &amp; standing</td><td style="text-align:right;">Particulars</td></tr>
+        <tr><td class="k">Proprietor</td><td class="v">{{ owner }}</td></tr>
+        <tr><td class="k">PAN</td><td class="v num">{{ pan }}</td></tr>
+        <tr><td class="k">Proprietor CIBIL</td><td class="v num">{{ cibil }}</td></tr>
+        <tr><td class="k">Health score</td><td class="v num">{{ score }}/100 · {{ band_word }}</td></tr>
+        <tr><td class="k">Annual turnover</td><td class="v num">&#8377;{{ turnover_cr }} Cr</td></tr>
+      </table></div>
+    </div>
+    <p class="sec-sub" style="margin-top:18px;">{{ client_name }} is a {{ msme_class|lower }} {{ constitution|lower }} in {{ sector|lower }}, audited for {{ period_label }} by {{ auditor }}. Its {{ band_word|lower }} credit standing (health score {{ score }}/100, proprietor CIBIL {{ cibil }}) establishes the borrower's readiness to take on term finance.</p>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 3 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 4 — COST OF PROJECT & MEANS OF FINANCE -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Project Report</div><div class="doc">{{ period_label }} &middot; Indicative</div></div>
+    <div class="sec-no">03 &mdash; The financing</div>
+    <h2 class="sec">Cost of Project &amp; Means of Finance</h2>
+    <p class="sec-sub">Sized from debt-service capacity: cash accrual {{ base_cash_accrual_inr }} (net profit {{ base_npat_inr }} + depreciation {{ base_dep_inr }}) supports the term loan below at {{ target_dscr }}× cover.</p>
+    <table class="kvtab">
+      <tr class="head"><td>Means of finance</td><td style="text-align:right;">Amount</td></tr>
+      {% for r in means %}<tr><td class="k">{{ r.label }}</td><td class="v num">{{ r.value }}</td></tr>{% endfor %}
+      <tr class="sum"><td>Total cost of project</td><td class="v num">{{ project_cost_inr }}</td></tr>
+    </table>
+    <div class="chips">
+      <div class="chip"><div class="k">Term loan</div><div class="v num">&#8377;{{ loan_cr }} Cr</div><div class="s">{{ term_tenor }} yr @ {{ term_rate }}</div></div>
+      <div class="chip"><div class="k">Debt : equity</div><div class="v num">{{ de_ratio }}</div><div class="s">Term loan : promoter</div></div>
+      <div class="chip"><div class="k">Project cost</div><div class="v num">&#8377;{{ project_cost_cr }} Cr</div><div class="s">Supportable</div></div>
+    </div>
+    <div class="note"><b>Capex schedule to be defined.</b> The total above is an affordability envelope, not a costed project. Itemising the capex (plant &amp; machinery, civil works, contingency, margin for working capital) and the incremental revenue/EBIT it generates is the next step to turn this into a full DPR.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 4 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 5 — PROJECTED PROFITABILITY -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Project Report</div><div class="doc">{{ period_label }} &middot; Indicative</div></div>
+    <div class="sec-no">04 &mdash; The projections</div>
+    <h2 class="sec">Projected Profitability</h2>
+    <p class="sec-sub">Conservative organic trajectory — turnover +{{ growth_pct }} p.a., margins held, loaded with the new loan's interest. Returns from the capex itself are excluded, so this is a floor.</p>
+    <table class="tb">
+      <thead><tr><th>Particulars</th>{% for p in proj %}<th>{{ p.year }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        <tr><td>Turnover</td>{% for p in proj %}<td class="num">{{ p.turnover }}</td>{% endfor %}</tr>
+        <tr><td>Operating profit (EBIT)</td>{% for p in proj %}<td class="num">{{ p.ebit }}</td>{% endfor %}</tr>
+        <tr><td>Interest (WC + term)</td>{% for p in proj %}<td class="num">{{ p.interest }}</td>{% endfor %}</tr>
+        <tr><td>Depreciation</td>{% for p in proj %}<td class="num">{{ p.depreciation }}</td>{% endfor %}</tr>
+        <tr class="b"><td>Net profit after tax</td>{% for p in proj %}<td class="num">{{ p.pat }}</td>{% endfor %}</tr>
+        <tr class="b"><td>Cash accrual</td>{% for p in proj %}<td class="num">{{ p.cash_accrual }}</td>{% endfor %}</tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Basis.</b> Proprietorship — firm-level tax is taken at nil (income is taxed in the proprietor's hands). Existing working-capital interest and depreciation are held flat; only the new term-loan interest varies with the amortisation on the next page.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 5 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 6 — REPAYMENT SCHEDULE & DSCR -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Project Report</div><div class="doc">{{ period_label }} &middot; Indicative</div></div>
+    <div class="sec-no">05 &mdash; The debt service</div>
+    <h2 class="sec">Repayment Schedule &amp; DSCR</h2>
+    <p class="sec-sub">Term loan {{ loan_inr }} · {{ term_rate }} p.a. · {{ term_tenor }} years · equal annual principal. DSCR = (PAT + depreciation + term interest) ÷ (principal + term interest).</p>
+    <table class="tb">
+      <thead><tr><th>Year</th><th>Opening</th><th>Principal</th><th>Interest</th><th>Closing</th><th>Debt service</th><th>DSCR</th></tr></thead>
+      <tbody>
+        {% for s in sched %}<tr><td>{{ s.year }}</td><td class="num">{{ s.opening }}</td><td class="num">{{ s.principal }}</td><td class="num">{{ s.interest }}</td><td class="num">{{ s.closing }}</td><td class="num">{{ s.service }}</td><td class="num ok">{{ s.dscr }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    <div class="chips">
+      <div class="chip"><div class="k">Minimum DSCR</div><div class="v num">{{ min_dscr }}</div><div class="s">Over the tenor</div></div>
+      <div class="chip"><div class="k">Average DSCR</div><div class="v num">{{ avg_dscr }}</div><div class="s">Comfort margin</div></div>
+      <div class="chip"><div class="k">Target</div><div class="v num">&ge; {{ target_dscr }}</div><div class="s">Sizing basis</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 6 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 7 — VIABILITY, ASSUMPTIONS & RECOMMENDATION -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Project Report</div><div class="doc">{{ period_label }} &middot; Indicative</div></div>
+    <div class="sec-no">06 &mdash; The verdict</div>
+    <h2 class="sec">Viability &amp; Recommendation</h2>
+    <div class="recobox">
+      <div class="rh"><div class="lab">Recommendation &middot; {% if viable %}debt-service viable{% else %}strengthen first{% endif %}</div><div class="big">{{ recommendation }}</div></div>
+      <div class="rb">
+        <div class="item"><div class="k">Term loan</div><div class="v">{{ loan_inr }}</div></div>
+        <div class="item"><div class="k">Min DSCR</div><div class="v">{{ min_dscr }}</div></div>
+        <div class="item"><div class="k">Project cost</div><div class="v">&#8377;{{ project_cost_cr }} Cr</div></div>
+      </div>
+    </div>
+    <p class="sec-sub" style="margin:16px 0 4px;">Basis &amp; assumptions</p>
+    <ul class="ass">
+      {% for a in assumptions %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+    <div class="disclaimer">
+      <b>About this report.</b> Prepared by MFOS from {{ client_name }}'s {{ period_label }} audited financials ({{ auditor }}) as an indicative, pre-project debt-capacity assessment. No defined capital project or term-loan application is on record; the term loan, project cost, projections, repayment schedule and DSCR shown are <b>illustrative estimates</b> derived from the assumptions above, sizing borrowing to the business's current debt-service capacity. They are advisory and must be validated against a costed project scope, incremental returns, security valuation and lender terms before any commitment. Not a sanction or a commitment to lend. &middot; Generated {{ issued_long }}.
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System &middot; Concierge CFO for India's MSMEs</span><span>Page 7 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+</body>
+</html>
