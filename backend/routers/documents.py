@@ -107,6 +107,24 @@ async def upload_document(
                     "amount": extracted["total_tax"], "status": extracted["status"],
                     "arn": extracted["arn"],
                 }).execute()
+                # unified GST row (feeds GSTR-1 ↔ 3B reconciliation). Upsert by
+                # (msme_id, return_type, period); wrapped so a pre-DDL table can't
+                # break the upload path.
+                try:
+                    db.table("gst_returns").upsert({
+                        "msme_id": msme_id, "return_type": "GSTR3B",
+                        "period": month, "period_label": extracted.get("period_label"),
+                        "gstin": extracted.get("gstin"),
+                        "taxable_value": extracted.get("revenue") or 0,
+                        "igst": extracted.get("igst") or 0, "cgst": extracted.get("cgst") or 0,
+                        "sgst": extracted.get("sgst") or 0, "total_tax": extracted.get("total_tax") or 0,
+                        "arn": extracted.get("arn"), "filed_date": extracted.get("filed_date"),
+                        "due_date": extracted.get("due_date"), "status": extracted.get("status") or "filed",
+                        "days_late": extracted.get("days_late") or 0,
+                        "source": "gstr3b_upload", "source_doc_id": doc_id,
+                    }, on_conflict="msme_id,return_type,period").execute()
+                except Exception:
+                    pass
                 status = "parsed"
 
         # financial statements → parse to a review payload ONLY. The advisor

@@ -45,7 +45,7 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 ## Data ingestion (§5)
 
 - [ ] Bank statement entry — manual / bulk-paste / OCR + `bank_statements` table (P1)
-- [ ] GST return entry + GSTR-1 ↔ 3B reconciliation endpoint (P1)
+- [x] GST return entry (`POST /msme/{id}/gst-return`) + GSTR-1 ↔ 3B reconciliation (`GET /msme/{id}/gst-recon`) over `gst_returns` (P1)
 - [ ] Loan entry — sanction / EMI schedule / repayment log (table exists, no endpoints) (P1)
 - [ ] Debtor/creditor bulk import + party master + ageing-over-time (P1/P3)
 - [ ] Document upload + storage + OCR + versioning (P2)
@@ -55,7 +55,7 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 - [x] Financials **Trends** tab — period-over-period from `msme_financials` history (industry benchmarks still pending) (P3)
 - [x] **Banking** tab — parsed bank-statement position + history from `cash_position` (P1)
 - [x] **Compliance** tab — GST/TDS/PF/ESI filing status from `compliance_filings` (P1)
-- [ ] **GST recon** tab — needs GSTR-1 ↔ 3B (only GSTR-3B captured today) (P1)
+- [x] **GST recon** tab — GSTR-1 vs 3B per period from `gst_returns` (manual entry + auto GSTR-3B from uploads; GSTR-1 **PDF** parser pending a sample) (P1)
 - [x] **Loans** tab — facilities from `loans` (P2)
 - [x] **Documents** tab — upload + parse + list (P2)
 - [x] **Activity** tab — merged read-only feed (`GET /msme/{id}/activity`) over score_history + documents + bureau pulls + filings (P3)

@@ -114,6 +114,47 @@ export interface EntryData {
 export const getEntry = (msmeId: string): Promise<EntryData> =>
     get(`/msme/${msmeId}/entry`);
 
+// ── GST returns + reconciliation (§4 GST Recon tab) ──
+export interface GstReturnIn {
+    return_type: 'GSTR1' | 'GSTR3B';
+    period: string;                 // 'YYYY-MM-DD' (first of month)
+    period_label?: string;
+    taxable_value: number;
+    igst?: number; cgst?: number; sgst?: number; cess?: number;
+    total_tax?: number | null;
+    status?: string;
+}
+
+export const saveGstReturn = (msmeId: string, body: GstReturnIn): Promise<{ ok: boolean }> =>
+    post(`/msme/${msmeId}/gst-return`, body);
+
+export interface GstReconRow {
+    period: string;
+    period_label?: string | null;
+    gstr1_taxable?: number;
+    gstr3b_taxable?: number;
+    gstr1_tax?: number;
+    gstr3b_tax?: number;
+    gstr1_status?: string;
+    gstr3b_status?: string;
+    taxable_diff: number;
+    tax_diff: number;
+    both_filed: boolean;
+    mismatch: boolean;
+}
+
+export interface GstReconResponse {
+    available: boolean;
+    rows: GstReconRow[];
+    summary: {
+        periods: number; matched: number; mismatched: number;
+        only_one_side: number; total_abs_taxable_diff: number;
+    };
+}
+
+export const getGstRecon = (msmeId: string): Promise<GstReconResponse> =>
+    get(`/msme/${msmeId}/gst-recon`);
+
 // ── Activity timeline (merged read-only feed, §4 Activity tab) ──
 export interface ActivityEvent {
     ts: string;

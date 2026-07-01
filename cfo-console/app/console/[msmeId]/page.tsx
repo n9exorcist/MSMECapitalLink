@@ -10,8 +10,8 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 // Relative import works with no tsconfig change. If you set up the "@/*" alias
 // to point at ./app/*, you can use: import { ... } from '@/lib/api';
-import { getEntry, saveFinancials, saveDebtor, saveCreditor, saveProposal, getActivity } from '../../lib/api';
-import type { ActivityEvent } from '../../lib/api';
+import { getEntry, saveFinancials, saveDebtor, saveCreditor, saveProposal, getActivity, getGstRecon, saveGstReturn } from '../../lib/api';
+import type { ActivityEvent, GstReconRow } from '../../lib/api';
 import Client360Live from '../Client360Live';
 import DocumentUpload from '../DocumentUpload';
 
@@ -21,7 +21,7 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'overview' | 'financials' | 'trends' | 'proposal' | 'debtors' | 'creditors' | 'banking' | 'loans' | 'compliance' | 'documents' | 'activity';
+type Tab = 'overview' | 'financials' | 'trends' | 'proposal' | 'debtors' | 'creditors' | 'banking' | 'loans' | 'compliance' | 'gst' | 'documents' | 'activity';
 type Msg = { kind: 'ok' | 'err'; text: string };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
@@ -155,6 +155,10 @@ export default function ConsolePage() {
   const [finHist, setFinHist] = useState<FinRow[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
+  const [gstRows, setGstRows] = useState<GstReconRow[]>([]);
+  const [gstSummary, setGstSummary] = useState<{ periods: number; matched: number; mismatched: number; only_one_side: number; total_abs_taxable_diff: number } | null>(null);
+  const [gstLoaded, setGstLoaded] = useState(false);
+  const [newGst, setNewGst] = useState({ return_type: 'GSTR1', month: '', taxable_value: '', total_tax: '' });
   const [newDebtor, setNewDebtor] = useState({ name: '', amount_outstanding: '', days_outstanding: '' });
   const [newCreditor, setNewCreditor] = useState({ name: '', amount_due: '', due_date: '' });
   const [proposal, setProposal] = useState({
@@ -240,6 +244,17 @@ export default function ConsolePage() {
     return () => { ignore = true; };
   }, [tab, msmeId, refreshKey]);
 
+  // GST reconciliation — lazy-loaded when its tab opens; refreshes on save.
+  useEffect(() => {
+    if (tab !== 'gst' || !msmeId) return;
+    let ignore = false;
+    setGstLoaded(false);
+    getGstRecon(msmeId)
+      .then((d) => { if (!ignore) { setGstRows(d.rows || []); setGstSummary(d.summary); setGstLoaded(true); } })
+      .catch(() => { if (!ignore) setGstLoaded(true); });
+    return () => { ignore = true; };
+  }, [tab, msmeId, refreshKey]);
+
   async function onSaveFinancials() {
     setBusy(true);
     setMsg(null);
@@ -322,6 +337,31 @@ export default function ConsolePage() {
     }
   }
 
+  async function onSaveGstReturn() {
+    if (!newGst.month) { setMsg({ kind: 'err', text: 'Pick a period (month).' }); return; }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const period = `${newGst.month}-01`;
+      const label = new Date(`${period}T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      await saveGstReturn(msmeId, {
+        return_type: newGst.return_type as 'GSTR1' | 'GSTR3B',
+        period,
+        period_label: label,
+        taxable_value: toNum(newGst.taxable_value),
+        total_tax: newGst.total_tax ? toNum(newGst.total_tax) : null,
+      });
+      setNewGst({ ...newGst, taxable_value: '', total_tax: '' });
+      const d = await getGstRecon(msmeId);
+      setGstRows(d.rows || []); setGstSummary(d.summary); setGstLoaded(true);
+      setMsg({ kind: 'ok', text: `${newGst.return_type} for ${label} saved.` });
+    } catch (e) {
+      setMsg({ kind: 'err', text: `Save failed: ${(e as Error).message}` });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const tabsStrip = (
     <div className="glass mx-4 sm:mx-6 mt-4 rounded-xl px-2 overflow-x-auto">
       <div className="flex min-w-max">
@@ -334,6 +374,7 @@ export default function ConsolePage() {
         <TabBtn id="banking" label={`Banking (${banking.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="loans" label={`Loans (${loans.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="compliance" label={`Compliance (${compliance.length})`} active={tab} onSelect={setTab} />
+        <TabBtn id="gst" label="GST Recon" active={tab} onSelect={setTab} />
         <TabBtn id="documents" label="Documents" active={tab} onSelect={setTab} />
         <TabBtn id="activity" label="Activity" active={tab} onSelect={setTab} />
       </div>
@@ -646,6 +687,73 @@ export default function ConsolePage() {
                       },
                     ]}
                     empty="No compliance filings on file for this client. GST/TDS/PF/ESI filings appear here."
+                  />
+                </section>
+              )}
+
+              {/* GST RECON — GSTR-1 vs GSTR-3B per period (§4 GST Recon tab).
+                  Reads gst_returns via /gst-recon; GSTR-3B auto-populates from
+                  uploads, GSTR-1 (and either, as override) via manual entry. */}
+              {tab === 'gst' && (
+                <section className="space-y-5 rise">
+                  {gstSummary && (
+                    <div className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+                      <div className="eyebrow mb-3">Reconciliation summary</div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <BankStat label="Periods" value={String(gstSummary.periods)} accent={C.navy} />
+                        <BankStat label="Matched" value={String(gstSummary.matched)} accent={C.green} />
+                        <BankStat label="Mismatched" value={String(gstSummary.mismatched)} accent={gstSummary.mismatched > 0 ? C.red : C.muted} />
+                        <BankStat label="Only one side" value={String(gstSummary.only_one_side)} accent={gstSummary.only_one_side > 0 ? C.amber : C.muted} />
+                        <BankStat label="Total taxable gap" value={inr(gstSummary.total_abs_taxable_diff)} accent={gstSummary.total_abs_taxable_diff > 0 ? C.amber : C.muted} />
+                      </div>
+                    </div>
+                  )}
+
+                  <AddCard title="Add / update a GST return">
+                    <Field label="Return type">
+                      <select className={`${inputCls} sm:max-w-[160px]`} style={inputStyle} value={newGst.return_type}
+                        onChange={(e) => setNewGst({ ...newGst, return_type: e.target.value })}>
+                        <option value="GSTR1">GSTR-1</option>
+                        <option value="GSTR3B">GSTR-3B</option>
+                      </select>
+                    </Field>
+                    <Field label="Period (month)">
+                      <input className={`${inputCls} sm:max-w-[170px]`} style={inputStyle} type="month"
+                        value={newGst.month} onChange={(e) => setNewGst({ ...newGst, month: e.target.value })} />
+                    </Field>
+                    <Field label="Taxable outward (₹)">
+                      <input className={`${inputCls} sm:max-w-[180px]`} style={inputStyle} inputMode="numeric"
+                        value={newGst.taxable_value} onChange={(e) => setNewGst({ ...newGst, taxable_value: e.target.value })} />
+                    </Field>
+                    <Field label="Total tax (₹, optional)">
+                      <input className={`${inputCls} sm:max-w-[170px]`} style={inputStyle} inputMode="numeric"
+                        value={newGst.total_tax} onChange={(e) => setNewGst({ ...newGst, total_tax: e.target.value })} />
+                    </Field>
+                    <button onClick={onSaveGstReturn} disabled={busy || !msmeId} style={busy || !msmeId ? disabledBtnStyle : navyBtnStyle}
+                      className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">
+                      {busy ? 'Saving…' : 'Save return'}
+                    </button>
+                  </AddCard>
+
+                  {!gstLoaded && <div style={{ color: C.muted }} className="text-sm px-1">Loading reconciliation…</div>}
+                  <ListCard<GstReconRow>
+                    rows={gstRows}
+                    cols={[
+                      { h: 'Period', get: (r) => r.period_label || r.period, primary: true },
+                      { h: 'GSTR-1 taxable', get: (r) => (r.gstr1_taxable == null ? '—' : inr(r.gstr1_taxable)) },
+                      { h: 'GSTR-3B taxable', get: (r) => (r.gstr3b_taxable == null ? '—' : inr(r.gstr3b_taxable)) },
+                      { h: 'Diff', get: (r) => (r.both_filed ? inr(r.taxable_diff) : '—') },
+                      {
+                        h: 'Status',
+                        get: (r) => {
+                          const [txt, col] = !r.both_filed
+                            ? ['Only 1 side', C.amber]
+                            : r.mismatch ? ['Mismatch', C.red] : ['Match', C.green];
+                          return <span style={{ color: col, fontWeight: 700 }}>{txt}</span>;
+                        },
+                      },
+                    ]}
+                    empty="No GST returns on file yet. Upload GSTR-3B in Documents, or key figures above; GSTR-1 vs 3B lines up here."
                   />
                 </section>
               )}

@@ -165,6 +165,96 @@ def get_entry(msme_id: str, db=Depends(get_db)):
     }
 
 
+class GstReturnIn(BaseModel):
+    return_type: str                          # 'GSTR1' | 'GSTR3B'
+    period: str                               # 'YYYY-MM-DD' (first of month)
+    period_label: Optional[str] = None
+    gstin: Optional[str] = None
+    taxable_value: float = 0
+    igst: float = 0
+    cgst: float = 0
+    sgst: float = 0
+    cess: float = 0
+    total_tax: Optional[float] = None         # derived from the tax split if omitted
+    arn: Optional[str] = None
+    filed_date: Optional[str] = None
+    due_date: Optional[str] = None
+    status: str = "filed"
+    filing_frequency: str = "monthly"
+
+
+@router.post("/{msme_id}/gst-return")
+def save_gst_return(msme_id: str, body: GstReturnIn, db=Depends(get_db)):
+    """Manual GST-return entry (either type). Upserts by (msme_id, return_type,
+    period) so re-entering a period corrects it in place. This is the
+    PDF-parser-free path — advisors can key the two headline figures and the
+    reconciliation lights up immediately."""
+    if body.return_type not in ("GSTR1", "GSTR3B"):
+        raise HTTPException(400, "return_type must be 'GSTR1' or 'GSTR3B'.")
+    row = body.model_dump()
+    row["msme_id"] = msme_id
+    if row.get("total_tax") is None:
+        row["total_tax"] = round(row["igst"] + row["cgst"] + row["sgst"] + row["cess"], 2)
+    row["source"] = "manual_entry"
+    db.table("gst_returns").upsert(row, on_conflict="msme_id,return_type,period").execute()
+    return {"ok": True}
+
+
+@router.get("/{msme_id}/gst-recon")
+def get_gst_recon(msme_id: str, db=Depends(get_db)):
+    """Per-period GSTR-1 vs GSTR-3B reconciliation, computed from gst_returns.
+    A period is flagged `mismatch` when both returns exist and the taxable-value
+    gap exceeds a tolerance (₹1,000 or 1% of the larger side)."""
+    try:
+        rows = (db.table("gst_returns").select("*").eq("msme_id", msme_id)
+                .order("period", desc=True).execute().data or [])
+    except Exception:
+        return {"available": False, "rows": [],
+                "summary": {"periods": 0, "matched": 0, "mismatched": 0,
+                            "only_one_side": 0, "total_abs_taxable_diff": 0}}
+
+    by_period: dict = {}
+    for r in rows:
+        p = str(r.get("period"))
+        slot = by_period.setdefault(p, {"period": r.get("period"),
+                                        "period_label": r.get("period_label")})
+        if not slot.get("period_label"):
+            slot["period_label"] = r.get("period_label")
+        if r.get("return_type") == "GSTR1":
+            slot["gstr1_taxable"] = float(r.get("taxable_value") or 0)
+            slot["gstr1_tax"] = float(r.get("total_tax") or 0)
+            slot["gstr1_status"] = r.get("status")
+        elif r.get("return_type") == "GSTR3B":
+            slot["gstr3b_taxable"] = float(r.get("taxable_value") or 0)
+            slot["gstr3b_tax"] = float(r.get("total_tax") or 0)
+            slot["gstr3b_status"] = r.get("status")
+
+    out, matched, mismatched, one_side, total_abs = [], 0, 0, 0, 0.0
+    for s in by_period.values():
+        g1, g3 = s.get("gstr1_taxable"), s.get("gstr3b_taxable")
+        both = g1 is not None and g3 is not None
+        diff = (g1 or 0) - (g3 or 0)
+        tol = max(1000.0, 0.01 * max(g1 or 0, g3 or 0))
+        mismatch = bool(both and abs(diff) > tol)
+        if both:
+            total_abs += abs(diff)
+            matched += 0 if mismatch else 1
+            mismatched += 1 if mismatch else 0
+        else:
+            one_side += 1
+        s["taxable_diff"] = round(diff, 2)
+        s["tax_diff"] = round((s.get("gstr1_tax") or 0) - (s.get("gstr3b_tax") or 0), 2)
+        s["both_filed"] = both
+        s["mismatch"] = mismatch
+        out.append(s)
+
+    out.sort(key=lambda x: str(x["period"]), reverse=True)
+    return {"available": True, "rows": out,
+            "summary": {"periods": len(out), "matched": matched,
+                        "mismatched": mismatched, "only_one_side": one_side,
+                        "total_abs_taxable_diff": round(total_abs, 2)}}
+
+
 @router.get("/{msme_id}/activity")
 def get_activity(msme_id: str, db=Depends(get_db)):
     """A read-only client timeline merged from existing append-only tables
