@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { ScrollView, View, Text, StyleSheet, SafeAreaView, Animated, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { C } from '@/constants/theme';
-import { healthReportUrl } from '../../lib/api';
+import { documentUrl } from '../../lib/api';
 import { useMsmeData } from '../../hooks/useMsmeData';
 import { useLoans } from '../../hooks/useLoans';
 import { useMonthlySales } from '../../hooks/useMonthlySales';
@@ -25,6 +25,15 @@ interface ComplianceItem {
 //   compliance  → LIVE from `compliance_filings` (useComplianceFilings).
 //   sales       → LIVE from `monthly_sales`      (useMonthlySales).
 //   emiHistory  → no per-payment table           → MOCK.
+// Owner-facing reports (keys match the backend registry). Internal banker docs
+// (bank_proposal, cma, dpr, wc_renewal) are console-only and deliberately excluded.
+const OWNER_REPORTS: { key: string; title: string; sub: string; icon: string }[] = [
+    { key: 'health', title: 'Health Report', sub: 'Your full credit-readiness assessment (PDF)', icon: '📄' },
+    { key: 'annual_review', title: 'Annual Business Review', sub: 'A year-end review of your business (PDF)', icon: '📈' },
+    { key: 'migration', title: 'Migration Pathway Plan', sub: 'Your route to a cheaper bank (PDF)', icon: '🧭' },
+    { key: 'green', title: 'Green Opportunity Report', sub: 'Solar & green-finance potential (PDF)', icon: '🌱' },
+];
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const EMI_STATUS: Record<string, MonthStatus> = {
@@ -108,9 +117,9 @@ export default function MoreScreen() {
     );
     // ↑↑↑ ADD HERE ↑↑↑
 
-    const openHealthReport = useCallback(() => {
+    const openReport = useCallback((key: string) => {
         if (!activeMsmeId) return;
-        Linking.openURL(healthReportUrl(activeMsmeId));
+        Linking.openURL(documentUrl(activeMsmeId, key));
     }, [activeMsmeId]);
 
     const loan = loans[0] ?? null; // primary = largest sanctioned
@@ -193,19 +202,22 @@ export default function MoreScreen() {
 
                 {/* ── REPORTS ── */}
                 <Text style={styles.sectionTitle}>Reports</Text>
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={openHealthReport}
-                    disabled={!activeMsmeId}
-                    style={[styles.card, styles.reportCard, !activeMsmeId && { opacity: 0.5 }]}
-                >
-                    <View style={styles.reportIcon}><Text style={{ fontSize: 20 }}>📄</Text></View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.reportTitle}>Download Health Report</Text>
-                        <Text style={styles.reportSub}>Your full credit-readiness assessment (PDF)</Text>
-                    </View>
-                    <Text style={styles.reportChevron}>›</Text>
-                </TouchableOpacity>
+                {OWNER_REPORTS.map((r) => (
+                    <TouchableOpacity
+                        key={r.key}
+                        activeOpacity={0.8}
+                        onPress={() => openReport(r.key)}
+                        disabled={!activeMsmeId}
+                        style={[styles.card, styles.reportCard, !activeMsmeId && { opacity: 0.5 }]}
+                    >
+                        <View style={styles.reportIcon}><Text style={{ fontSize: 20 }}>{r.icon}</Text></View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.reportTitle}>{r.title}</Text>
+                            <Text style={styles.reportSub}>{r.sub}</Text>
+                        </View>
+                        <Text style={styles.reportChevron}>›</Text>
+                    </TouchableOpacity>
+                ))}
 
                 {/* ── LOANS & EMI (live from `loans`) ── */}
                 <Text style={styles.sectionTitle}>Loans & EMI</Text>
@@ -362,7 +374,7 @@ const styles = StyleSheet.create({
     cardHero: { boxShadow: '0px 10px 24px rgba(11,46,79,0.10)' } as any,
 
     // Reports
-    reportCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    reportCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 },
     reportIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.navyDark, alignItems: 'center', justifyContent: 'center' },
     reportTitle: { fontSize: 15, fontWeight: '800', color: C.text },
     reportSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },

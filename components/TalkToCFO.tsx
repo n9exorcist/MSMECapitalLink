@@ -10,13 +10,15 @@ export interface CFOAdvisor {
     bookingUrl?: string;  // Calendly / Cal.com link for "Schedule a review"
 }
 
-// Replace these with the MSME's ASSIGNED advisor (ideally fetched from Supabase),
-// or pass an `advisor` prop from the screen.
+// The MFOS CFO desk contact. Configure per deployment via EXPO_PUBLIC_* env vars (set in
+// .env, inlined at build) — no code change to point at the real desk/advisor. A screen can
+// still override with an `advisor` prop (e.g. the client's assigned advisor from Supabase).
 const DEFAULT_ADVISOR: CFOAdvisor = {
-    name: 'Your MFOS CFO',
-    phone: '+910000000000',          // TODO
-    email: 'cfo@mfos.app',           // TODO
-    bookingUrl: 'https://mfos.app/book', // TODO
+    name: process.env.EXPO_PUBLIC_CFO_NAME || 'Your MFOS CFO',
+    phone: process.env.EXPO_PUBLIC_CFO_PHONE || '+910000000000',
+    whatsapp: process.env.EXPO_PUBLIC_CFO_WHATSAPP || undefined,
+    email: process.env.EXPO_PUBLIC_CFO_EMAIL || 'cfo@mfos.app',
+    bookingUrl: process.env.EXPO_PUBLIC_CFO_BOOKING || 'https://mfos.app/book',
 };
 
 const onlyDigits = (s: string) => s.replace(/[^\d]/g, '');

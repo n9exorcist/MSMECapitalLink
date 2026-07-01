@@ -60,6 +60,11 @@ export const getClient360 = (id: string): Promise<Client360Data> =>
 export const healthReportUrl = (msmeId: string): string =>
     `${API}/msme/${msmeId}/reports/health`;
 
+// Direct URL to any generated document PDF by its registry key (health, annual_review,
+// migration, green, …). Owner-facing reports are opened with Linking.openURL.
+export const documentUrl = (msmeId: string, key: string): string =>
+    `${API}/msme/${msmeId}/documents/${key}`;
+
 // ── Per-client read + writes ──
 export interface EntryData {
     company: string | null;
