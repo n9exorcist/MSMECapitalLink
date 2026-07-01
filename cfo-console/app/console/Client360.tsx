@@ -5,6 +5,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import CreditBureauPanel from './CreditBureauPanel';
+import BriefingComposer from './BriefingComposer';
 import { downloadDocument } from '../lib/api';
 
 // Document tiles. `key` matches the backend registry (reports/registry.py); tiles with a
@@ -333,6 +334,9 @@ export default function Client360({
               })}
             </div>
           </div>
+
+          {/* DAILY BRIEFING COMPOSER → owner app "Today's 3 Actions" */}
+          <BriefingComposer msmeId={msmeId} />
 
           <footer>
             <div>Source: audited {d.auditedPeriod} financials + GST returns · <b>Scores recomputed on save</b></div>

@@ -20,6 +20,7 @@ from routers import client360
 from routers import admin
 from routers import documents
 from routers import reports
+from routers import ai
 
 # Import our modular routers
 from routers import health, dashboard
@@ -72,3 +73,4 @@ app.include_router(client360.router)
 app.include_router(admin.router)
 app.include_router(documents.router)
 app.include_router(reports.router)
+app.include_router(ai.router)

@@ -134,6 +134,27 @@ export const saveCreditBureauPull = (
     },
 ) => post(`/msme/${msmeId}/credit-bureau`, body);
 
+// ── Daily Briefing → owner app "Today's 3 Actions" (§9.4 / §5.2) ──
+export interface BriefAction {
+    icon?: string;
+    text: string;
+    detail: string;
+    urgency?: 'high' | 'medium' | 'low';
+}
+
+// Suggest 3 actions (AI-assisted, grounded in the read-model) — does not persist.
+export const draftBriefing = (
+    msmeId: string,
+): Promise<{ msme_id: string; client_name: string; source: 'ai' | 'rules'; actions: BriefAction[] }> =>
+    post(`/ai/daily-briefing/${msmeId}/draft`, {});
+
+// Publish the (edited) actions — replaces the client's set the owner app reads.
+export const publishBriefing = (
+    msmeId: string,
+    actions: BriefAction[],
+): Promise<{ status: string; count: number; actions: (BriefAction & { id: string })[] }> =>
+    post(`/ai/daily-briefing/${msmeId}/publish`, { actions });
+
 export const saveDebtor = (msmeId: string, body: Row) =>
     post(`/msme/${msmeId}/debtors`, body);
 
