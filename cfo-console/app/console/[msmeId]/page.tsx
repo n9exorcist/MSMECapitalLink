@@ -20,13 +20,19 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'overview' | 'financials' | 'proposal' | 'debtors' | 'creditors' | 'loans' | 'compliance' | 'documents';
+type Tab = 'overview' | 'financials' | 'proposal' | 'debtors' | 'creditors' | 'banking' | 'loans' | 'compliance' | 'documents';
 type Msg = { kind: 'ok' | 'err'; text: string };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
 interface Creditor { id?: string; name: string; amount_due?: number; due_date?: string }
 interface Loan { id?: string; loan_type?: string; lender?: string; sanctioned_amount?: number; outstanding_balance?: number; emi_amount?: number; interest_rate?: number; next_due_date?: string }
 interface Compliance { id?: string; filing_type?: string; period?: string; due_date?: string; filed_date?: string; status?: string; amount?: number }
+interface CashPos {
+  id?: string; as_of_date?: string; period_from?: string; period_to?: string;
+  closing_balance?: number; opening_balance?: number; total_inflow?: number;
+  total_outflow?: number; avg_daily_outflow?: number; accounts_count?: number;
+  account_type?: string; source?: string;
+}
 
 const FIN_GROUPS: { title: string; fields: { key: string; label: string }[] }[] = [
   {
@@ -132,6 +138,7 @@ export default function ConsolePage() {
   const [creditors, setCreditors] = useState<Creditor[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [compliance, setCompliance] = useState<Compliance[]>([]);
+  const [banking, setBanking] = useState<CashPos[]>([]);
   const [newDebtor, setNewDebtor] = useState({ name: '', amount_outstanding: '', days_outstanding: '' });
   const [newCreditor, setNewCreditor] = useState({ name: '', amount_due: '', due_date: '' });
   const [proposal, setProposal] = useState({
@@ -152,6 +159,7 @@ export default function ConsolePage() {
       setCreditors((d.creditors || []) as unknown as Creditor[]);
       setLoans((d.loans || []) as unknown as Loan[]);
       setCompliance((d.compliance || []) as unknown as Compliance[]);
+      setBanking((d.banking || []) as unknown as CashPos[]);
       if (d.proposal) setProposal(propFromRow(d.proposal));
       const f = d.financials;
       if (f) {
@@ -183,6 +191,7 @@ export default function ConsolePage() {
         setCreditors((d.creditors || []) as unknown as Creditor[]);
         setLoans((d.loans || []) as unknown as Loan[]);
         setCompliance((d.compliance || []) as unknown as Compliance[]);
+        setBanking((d.banking || []) as unknown as CashPos[]);
         if (d.proposal) setProposal(propFromRow(d.proposal));
         const f = d.financials;
         if (f) {
@@ -291,6 +300,7 @@ export default function ConsolePage() {
         <TabBtn id="proposal" label="Proposal" active={tab} onSelect={setTab} />
         <TabBtn id="debtors" label={`Money In (${debtors.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="creditors" label={`Money Out (${creditors.length})`} active={tab} onSelect={setTab} />
+        <TabBtn id="banking" label={`Banking (${banking.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="loans" label={`Loans (${loans.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="compliance" label={`Compliance (${compliance.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="documents" label="Documents" active={tab} onSelect={setTab} />
@@ -489,6 +499,54 @@ export default function ConsolePage() {
                 </section>
               )}
 
+              {/* BANKING — parsed bank-statement position + history (§4 Banking tab).
+                  Reads cash_position (populated by bank-statement uploads). */}
+              {tab === 'banking' && (
+                <section className="space-y-5 rise">
+                  {banking.length > 0 && (() => {
+                    const b = banking[0];
+                    const runway = b.avg_daily_outflow && b.avg_daily_outflow > 0 && b.closing_balance != null
+                      ? Math.round(b.closing_balance / b.avg_daily_outflow) : null;
+                    const bounces = fin.bounces_per_month ? Number(fin.bounces_per_month) : 0;
+                    return (
+                      <div className="card-gloss card-static rounded-2xl p-4 sm:p-5">
+                        <div className="eyebrow mb-3">
+                          Latest bank position{b.period_to ? ` · as of ${fmtDate(b.period_to)}` : ''}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <BankStat label="Closing balance" value={inr(b.closing_balance)} accent={C.navy} />
+                          <BankStat label="Total inflow" value={inr(b.total_inflow)} accent={C.green} />
+                          <BankStat label="Total outflow" value={inr(b.total_outflow)} accent={C.red} />
+                          <BankStat label="Avg daily outflow" value={inr(b.avg_daily_outflow)} accent={C.text} />
+                          <BankStat label="Cash runway" value={runway != null ? `${runway} days` : '—'} accent={runway != null && runway < 30 ? C.amber : C.teal} />
+                          <BankStat label="Cheque bounces / mo" value={String(bounces)} accent={bounces > 0 ? C.red : C.green} />
+                          <BankStat label="Account type" value={b.account_type || '—'} accent={C.text} />
+                          <BankStat label="Accounts" value={b.accounts_count != null ? String(b.accounts_count) : '—'} accent={C.text} />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <ListCard<CashPos>
+                    rows={banking}
+                    cols={[
+                      {
+                        h: 'Period',
+                        get: (r) => (r.period_from && r.period_to
+                          ? `${fmtDate(r.period_from)} – ${fmtDate(r.period_to)}`
+                          : fmtDate(r.as_of_date)),
+                        primary: true,
+                      },
+                      { h: 'Opening', get: (r) => inr(r.opening_balance) },
+                      { h: 'Inflow', get: (r) => inr(r.total_inflow) },
+                      { h: 'Outflow', get: (r) => inr(r.total_outflow) },
+                      { h: 'Closing', get: (r) => inr(r.closing_balance) },
+                      { h: 'Avg daily out', get: (r) => inr(r.avg_daily_outflow) },
+                    ]}
+                    empty="No bank-statement data yet. Upload a bank statement in the Documents tab and the parsed position appears here."
+                  />
+                </section>
+              )}
+
               {/* LOANS — read-only view of existing facilities (§4 Loans tab) */}
               {tab === 'loans' && (
                 <section className="space-y-5 rise">
@@ -654,6 +712,15 @@ function ListCard<T>({ rows, cols, empty }: { rows: T[]; cols: Col<T>[]; empty: 
         </div>
       </div>
     </>
+  );
+}
+
+function BankStat({ label, value, accent }: { label: string; value: ReactNode; accent: string }) {
+  return (
+    <div style={{ borderColor: C.border }} className="rounded-xl border bg-white/70 px-3 py-2.5">
+      <div style={{ color: C.muted }} className="text-[11px] font-semibold uppercase tracking-wide">{label}</div>
+      <div style={{ color: accent }} className="mt-1 text-base font-bold num">{value}</div>
+    </div>
   );
 }
 

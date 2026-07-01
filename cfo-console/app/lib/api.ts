@@ -107,6 +107,7 @@ export interface EntryData {
     proposal: Row | null;
     loans: Row[];
     compliance: Row[];
+    banking: Row[];
 }
 
 export const getEntry = (msmeId: string): Promise<EntryData> =>

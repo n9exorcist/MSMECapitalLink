@@ -140,6 +140,13 @@ def get_entry(msme_id: str, db=Depends(get_db)):
                       .order("due_date", desc=True).execute().data or [])
     except Exception:
         compliance = []
+    # bank-statement snapshots (parsed from uploads into cash_position) — the
+    # Banking tab's evidence. Newest first; wrapped so a missing table is harmless.
+    try:
+        banking = (db.table("cash_position").select("*").eq("msme_id", msme_id)
+                   .order("as_of_date", desc=True).limit(12).execute().data or [])
+    except Exception:
+        banking = []
     return {
 
         "company": ent.get("company_name") or ent.get("name"),
@@ -150,6 +157,7 @@ def get_entry(msme_id: str, db=Depends(get_db)):
         "proposal": prop[0] if prop else None,
         "loans": loans,
         "compliance": compliance,
+        "banking": banking,
     }
 
 
