@@ -37,6 +37,17 @@ def _pill(v, good, warn, higher_is_better=True, fmt="{:.2f}"):
     return (s, "crit", "Fail")
 
 
+def _safe(n, d):
+    """n / d, or None when the denominator is missing/non-positive."""
+    return (n / d) if (d and d > 0) else None
+
+
+def _pct(n, d):
+    """100 · n / d as a percentage, or None."""
+    r = _safe(n, d)
+    return None if r is None else r * 100.0
+
+
 @router.get("/{msme_id}/client360")
 def client360(msme_id: str, db=Depends(get_db)):
     # Single computed read-model (entity + financials + bureau overlay + score +
@@ -64,6 +75,42 @@ def client360(msme_id: str, db=Depends(get_db)):
         {"name": "TOL / TNW", "value": tol_v, "norm": "≤ 3.00", "status": tol_s, "label": tol_l},
         {"name": "Interest coverage (ICR)", "value": icr_v, "norm": "≥ 1.50", "status": icr_s, "label": icr_l},
         {"name": "WC cycle (days)", "value": wc_v, "norm": f"≤ {int(okb)}*", "status": wc_s, "label": wc_l},
+    ]
+
+    # ── extended ratio library (§7.3) — display-only, derived from the audited figures.
+    # Core banker ratios above stay single-sourced in read_model; these are view-layer.
+    sales = float(m.projected_annual_turnover or 0)
+    _gp = fin.get("gross_profit")
+    gp = float(_gp) if _gp not in (None, "") else None
+    ebit_v = float(m.ebit or 0)
+    dep_v = float(m.depreciation or 0)
+    npat_v = float(m.net_profit_after_tax or 0)
+    ca_v = float(m.current_assets or 0)
+    cl_v = float(m.current_liabilities or 0)
+    inv_v = float(m.inventory or 0)
+    tol_r = float(m.total_outside_liabilities or 0)
+    tnw_v = float(m.tangible_net_worth or 0)
+
+    term_debt = max(tol_r - cl_v, 0.0)         # long-term borrowings
+    cap_employed = tnw_v + term_debt
+    total_assets = tol_r + tnw_v               # balance-sheet identity
+    net_fixed = max(total_assets - ca_v, 0.0)
+
+    def _R(name, v, norm, good, warn, hib=True, fmt="{:.2f}"):
+        vv, st, lab = _pill(v, good, warn, higher_is_better=hib, fmt=fmt)
+        return {"name": name, "value": vv, "norm": norm, "status": st, "label": lab}
+
+    ratios += [
+        _R("Quick ratio", _safe(ca_v - inv_v, cl_v), "≥ 1.00", 1.0, 0.75),
+        _R("Gross margin", _pct(gp, sales) if gp is not None else None, "> 0", 8.0, 0.0, fmt="{:.1f}%"),
+        _R("Operating margin", _pct(ebit_v, sales), "> 0", 8.0, 0.0, fmt="{:.1f}%"),
+        _R("EBITDA margin", _pct(ebit_v + dep_v, sales), "> 0", 10.0, 0.0, fmt="{:.1f}%"),
+        _R("Net profit margin", _pct(npat_v, sales), "> 0", 5.0, 0.0, fmt="{:.1f}%"),
+        _R("Return on capital (ROCE)", _pct(ebit_v, cap_employed), "≥ 12%", 12.0, 0.0, fmt="{:.1f}%"),
+        _R("Return on equity (ROE)", _pct(npat_v, tnw_v), "> 0", 12.0, 0.0, fmt="{:.1f}%"),
+        _R("Asset turnover", _safe(sales, total_assets), "sector-led", 1.0, 0.5, fmt="{:.2f}×"),
+        _R("Fixed-asset turnover", _safe(sales, net_fixed), "sector-led", 2.0, 1.0, fmt="{:.2f}×"),
+        _R("Long-term debt / equity", _safe(term_debt, tnw_v), "≤ 1.00", 1.0, 2.0, hib=False),
     ]
 
     components = [
