@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMsmeData } from '../../hooks/useMsmeData';
 import { useCreditors } from '../../hooks/useCreditors';
 import { formatINR } from '../../lib/format';
@@ -28,6 +29,8 @@ interface Row {
     daysLeft: number | null;
     urgent: boolean;
     upi: string;
+    paidAt: string | null;
+    utr: string | null;
 }
 
 // ─── SUPPLIER ROW (self-animating, pressable) ─────────────────────────────────
@@ -84,7 +87,15 @@ export default function MoneyOutScreen() {
     const activeMsmeId = msmeEntities && msmeEntities.length > 0 ? msmeEntities[0].id : null;
     const { data: creditors = [], isLoading } = useCreditors(activeMsmeId);
 
-    const rows: Row[] = creditors.map((c) => {
+    // Reflect a "mark as paid" done on the supplier-detail screen when we return here.
+    const queryClient = useQueryClient();
+    useFocusEffect(
+        useCallback(() => {
+            queryClient.invalidateQueries({ queryKey: ['creditors', activeMsmeId] });
+        }, [queryClient, activeMsmeId]),
+    );
+
+    const allRows: Row[] = creditors.map((c) => {
         const d = daysUntil(c.due_date);
         return {
             id: c.id,
@@ -93,11 +104,15 @@ export default function MoneyOutScreen() {
             dueDate: fmtDue(c.due_date),
             daysLeft: d,
             urgent: d != null && d >= 0 && d <= 3, // due within ~3 days
-            // ↓↓↓ ASSUMPTION: `creditors` has a `upi_id` column. If yours is named
-            // differently (vpa / upi / payee_vpa), change `c.upi_id` here.
-            upi: String((c as any).upi_id ?? ''),
+            upi: String(c.upi_id ?? ''),
+            paidAt: c.paid_at ?? null,
+            utr: c.utr ?? null,
         };
     });
+
+    // Split settled vs outstanding — paid suppliers drop out of the "to pay" totals.
+    const rows = allRows.filter((r) => !r.paidAt);
+    const paidRows = allRows.filter((r) => r.paidAt);
 
     const total = rows.reduce((a, c) => a + c.amount, 0);
     const dueThisWeek = rows
@@ -160,14 +175,38 @@ export default function MoneyOutScreen() {
 
                 {isLoading ? (
                     <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} />
-                ) : rows.length === 0 ? (
+                ) : allRows.length === 0 ? (
                     <Text style={styles.empty}>No suppliers yet. Add payables from the CFO console.</Text>
                 ) : (
                     <>
-                        <Text style={styles.listCount}>All suppliers</Text>
-                        {rows.map((c, i) => (
-                            <CreditorRow key={c.id} c={c} index={i} onPress={() => openSupplier(c)} />
-                        ))}
+                        {rows.length > 0 ? (
+                            <>
+                                <Text style={styles.listCount}>To pay</Text>
+                                {rows.map((c, i) => (
+                                    <CreditorRow key={c.id} c={c} index={i} onPress={() => openSupplier(c)} />
+                                ))}
+                            </>
+                        ) : (
+                            <Text style={styles.empty}>All caught up — nothing left to pay. 🎉</Text>
+                        )}
+
+                        {paidRows.length > 0 && (
+                            <>
+                                <Text style={[styles.listCount, { marginTop: 20 }]}>Recently paid</Text>
+                                {paidRows.map((c) => (
+                                    <View key={c.id} style={styles.paidRow}>
+                                        <View style={styles.paidCheck}><Text style={styles.paidCheckText}>✓</Text></View>
+                                        <View style={styles.rowInfo}>
+                                            <Text style={styles.name} numberOfLines={1}>{c.name}</Text>
+                                            <Text style={styles.paidSub} numberOfLines={1}>
+                                                Paid{c.utr ? ` · UTR ${c.utr}` : ''}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.paidAmount}>{formatINR(c.amount)}</Text>
+                                    </View>
+                                ))}
+                            </>
+                        )}
                     </>
                 )}
 
@@ -226,4 +265,15 @@ const styles = StyleSheet.create({
     amount: { fontSize: 16, fontWeight: '800' },
     payBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 10, marginTop: 4 },
     payBtnText: { color: C.white, fontSize: 11, fontWeight: '800' },
+
+    // Paid rows (settled — shown muted with a green check)
+    paidRow: {
+        backgroundColor: C.surface, borderRadius: 16, padding: 16,
+        flexDirection: 'row', alignItems: 'center', marginBottom: 8,
+        borderWidth: 1, borderColor: C.border, opacity: 0.85,
+    },
+    paidCheck: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: `${C.green}18` },
+    paidCheckText: { fontSize: 20, fontWeight: '800', color: C.green },
+    paidSub: { fontSize: 12, color: C.green, marginTop: 2, fontWeight: '600' },
+    paidAmount: { fontSize: 15, fontWeight: '800', color: C.textMuted, textDecorationLine: 'line-through' },
 });
