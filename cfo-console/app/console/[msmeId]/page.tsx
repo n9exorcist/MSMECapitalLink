@@ -10,7 +10,8 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 // Relative import works with no tsconfig change. If you set up the "@/*" alias
 // to point at ./app/*, you can use: import { ... } from '@/lib/api';
-import { getEntry, saveFinancials, saveDebtor, saveCreditor, saveProposal } from '../../lib/api';
+import { getEntry, saveFinancials, saveDebtor, saveCreditor, saveProposal, getActivity } from '../../lib/api';
+import type { ActivityEvent } from '../../lib/api';
 import Client360Live from '../Client360Live';
 import DocumentUpload from '../DocumentUpload';
 
@@ -20,7 +21,7 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'overview' | 'financials' | 'trends' | 'proposal' | 'debtors' | 'creditors' | 'banking' | 'loans' | 'compliance' | 'documents';
+type Tab = 'overview' | 'financials' | 'trends' | 'proposal' | 'debtors' | 'creditors' | 'banking' | 'loans' | 'compliance' | 'documents' | 'activity';
 type Msg = { kind: 'ok' | 'err'; text: string };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
@@ -152,6 +153,8 @@ export default function ConsolePage() {
   const [compliance, setCompliance] = useState<Compliance[]>([]);
   const [banking, setBanking] = useState<CashPos[]>([]);
   const [finHist, setFinHist] = useState<FinRow[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [activityLoaded, setActivityLoaded] = useState(false);
   const [newDebtor, setNewDebtor] = useState({ name: '', amount_outstanding: '', days_outstanding: '' });
   const [newCreditor, setNewCreditor] = useState({ name: '', amount_due: '', due_date: '' });
   const [proposal, setProposal] = useState({
@@ -224,6 +227,18 @@ export default function ConsolePage() {
     run();
     return () => { ignore = true; };
   }, [routeId]);
+
+  // Activity is lazy-loaded: fetched only when its tab is opened, and re-fetched
+  // when refreshKey bumps (a save/bureau pull writes a new score_history row).
+  useEffect(() => {
+    if (tab !== 'activity' || !msmeId) return;
+    let ignore = false;
+    setActivityLoaded(false);
+    getActivity(msmeId)
+      .then((d) => { if (!ignore) { setActivity(d.events || []); setActivityLoaded(true); } })
+      .catch(() => { if (!ignore) setActivityLoaded(true); });
+    return () => { ignore = true; };
+  }, [tab, msmeId, refreshKey]);
 
   async function onSaveFinancials() {
     setBusy(true);
@@ -320,6 +335,7 @@ export default function ConsolePage() {
         <TabBtn id="loans" label={`Loans (${loans.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="compliance" label={`Compliance (${compliance.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="documents" label="Documents" active={tab} onSelect={setTab} />
+        <TabBtn id="activity" label="Activity" active={tab} onSelect={setTab} />
       </div>
     </div>
   );
@@ -638,6 +654,30 @@ export default function ConsolePage() {
               {tab === 'documents' && (
                 <section className="space-y-5 rise">
                   <DocumentUpload msmeId={msmeId} onUploaded={() => setRefreshKey((k) => k + 1)} />
+                </section>
+              )}
+
+              {/* ACTIVITY — merged read-only timeline (§4 Activity tab) */}
+              {tab === 'activity' && (
+                <section className="space-y-3 rise">
+                  {!activityLoaded && (
+                    <div style={{ color: C.muted }} className="text-sm px-1">Loading activity…</div>
+                  )}
+                  {activityLoaded && activity.length === 0 && (
+                    <div style={{ color: C.muted }} className="card-gloss card-static rounded-2xl px-4 py-10 text-center text-sm">
+                      No recorded activity yet. Score recomputes, document uploads, bureau pulls and filings appear here.
+                    </div>
+                  )}
+                  {activity.map((e, i) => (
+                    <div key={i} className="card-gloss card-static rounded-2xl px-4 py-3 flex items-start gap-3">
+                      <span className="text-lg leading-none mt-0.5">{e.icon || '•'}</span>
+                      <div className="flex-1 min-w-0">
+                        <div style={{ color: C.text }} className="text-sm font-semibold">{e.title}</div>
+                        {e.detail && <div style={{ color: C.sub }} className="text-xs mt-0.5 truncate">{e.detail}</div>}
+                      </div>
+                      <span style={{ color: C.muted }} className="text-xs whitespace-nowrap">{fmtDate(e.ts)}</span>
+                    </div>
+                  ))}
                 </section>
               )}
 

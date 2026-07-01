@@ -114,6 +114,18 @@ export interface EntryData {
 export const getEntry = (msmeId: string): Promise<EntryData> =>
     get(`/msme/${msmeId}/entry`);
 
+// ── Activity timeline (merged read-only feed, §4 Activity tab) ──
+export interface ActivityEvent {
+    ts: string;
+    kind: 'score' | 'document' | 'bureau' | 'compliance';
+    icon?: string;
+    title: string;
+    detail?: string | null;
+}
+
+export const getActivity = (msmeId: string): Promise<{ events: ActivityEvent[] }> =>
+    get(`/msme/${msmeId}/activity`);
+
 // ── Loan proposal (the credit ask, for the Bank Proposal doc) ──
 export const saveProposal = (msmeId: string, body: Row) =>
     post(`/msme/${msmeId}/proposal`, body);

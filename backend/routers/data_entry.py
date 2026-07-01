@@ -165,6 +165,59 @@ def get_entry(msme_id: str, db=Depends(get_db)):
     }
 
 
+@router.get("/{msme_id}/activity")
+def get_activity(msme_id: str, db=Depends(get_db)):
+    """A read-only client timeline merged from existing append-only tables
+    (score_history, documents, credit_bureau_pulls, compliance_filings). No new
+    table — each source is wrapped so a missing one is simply skipped. This is a
+    lightweight activity feed, not the full before/after audit log (§12)."""
+    events: list[dict] = []
+
+    def add(ts, kind, icon, title, detail=None):
+        if ts:
+            events.append({"ts": ts, "kind": kind, "icon": icon,
+                           "title": title, "detail": detail})
+
+    try:
+        for r in (db.table("score_history").select("*").eq("msme_id", msme_id)
+                  .order("created_at", desc=True).limit(50).execute().data or []):
+            band = r.get("band")
+            add(r.get("created_at"), "score", "📊",
+                f"Score recomputed: {r.get('score')}/100" + (f" ({band})" if band else ""))
+    except Exception:
+        pass
+
+    try:
+        for r in (db.table("documents").select("*").eq("msme_id", msme_id)
+                  .order("created_at", desc=True).limit(50).execute().data or []):
+            add(r.get("created_at"), "document", "📄",
+                f"Uploaded {r.get('doc_type') or 'document'}", r.get("file_name"))
+    except Exception:
+        pass
+
+    try:
+        for r in (db.table("credit_bureau_pulls").select("*").eq("msme_id", msme_id)
+                  .order("pulled_on", desc=True).limit(50).execute().data or []):
+            add(r.get("pulled_on"), "bureau", "🏦",
+                f"{r.get('bureau') or 'CIBIL'} pull: {r.get('score')}", r.get("subject_name"))
+    except Exception:
+        pass
+
+    try:
+        for r in (db.table("compliance_filings").select("*").eq("msme_id", msme_id)
+                  .order("filed_date", desc=True).limit(50).execute().data or []):
+            add(r.get("filed_date") or r.get("created_at"), "compliance", "✅",
+                f"{r.get('filing_type') or 'Filing'} {r.get('period') or ''}".strip(),
+                r.get("status"))
+    except Exception:
+        pass
+
+    # Newest first. Mixed date/timestamp strings sort lexicographically well
+    # enough for a display feed (date-only rows land at day start).
+    events.sort(key=lambda e: str(e["ts"]), reverse=True)
+    return {"events": events[:100]}
+
+
 @router.post("/{msme_id}/financials")
 def save_financials(msme_id: str, body: FinancialsIn, db=Depends(get_db)):
     # Write ONLY the financial columns (never the operational ones — see
