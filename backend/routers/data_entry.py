@@ -134,6 +134,12 @@ def get_entry(msme_id: str, db=Depends(get_db)):
                  .order("sanctioned_amount", desc=True).execute().data or [])
     except Exception:
         loans = []
+    # compliance filings — wrapped so a missing table never breaks the entry screen.
+    try:
+        compliance = (db.table("compliance_filings").select("*").eq("msme_id", msme_id)
+                      .order("due_date", desc=True).execute().data or [])
+    except Exception:
+        compliance = []
     return {
 
         "company": ent.get("company_name") or ent.get("name"),
@@ -143,6 +149,7 @@ def get_entry(msme_id: str, db=Depends(get_db)):
         "creditors": creditors,
         "proposal": prop[0] if prop else None,
         "loans": loans,
+        "compliance": compliance,
     }
 
 

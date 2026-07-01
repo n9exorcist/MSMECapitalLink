@@ -20,11 +20,13 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'overview' | 'financials' | 'proposal' | 'debtors' | 'creditors' | 'documents';
+type Tab = 'overview' | 'financials' | 'proposal' | 'debtors' | 'creditors' | 'loans' | 'compliance' | 'documents';
 type Msg = { kind: 'ok' | 'err'; text: string };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
 interface Creditor { id?: string; name: string; amount_due?: number; due_date?: string }
+interface Loan { id?: string; loan_type?: string; lender?: string; sanctioned_amount?: number; outstanding_balance?: number; emi_amount?: number; interest_rate?: number; next_due_date?: string }
+interface Compliance { id?: string; filing_type?: string; period?: string; due_date?: string; filed_date?: string; status?: string; amount?: number }
 
 const FIN_GROUPS: { title: string; fields: { key: string; label: string }[] }[] = [
   {
@@ -91,6 +93,12 @@ const tealBtnStyle: CSSProperties = {
 const disabledBtnStyle: CSSProperties = { background: C.muted, color: '#fff' };
 const inr = (v: number | string | null | undefined) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 const toNum = (v: string) => (v.trim() === '' ? 0 : Number(v));
+const fmtDate = (s?: string | null) => {
+  if (!s) return '—';
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+};
+const complianceColor = (s?: string) => (s === 'pending' ? C.amber : s === 'filed' ? C.green : C.muted);
 
 type Row = Record<string, string | number | boolean | null | undefined>;
 const propFromRow = (p: Row | null) => ({
@@ -122,6 +130,8 @@ export default function ConsolePage() {
 
   const [debtors, setDebtors] = useState<Debtor[]>([]);
   const [creditors, setCreditors] = useState<Creditor[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [compliance, setCompliance] = useState<Compliance[]>([]);
   const [newDebtor, setNewDebtor] = useState({ name: '', amount_outstanding: '', days_outstanding: '' });
   const [newCreditor, setNewCreditor] = useState({ name: '', amount_due: '', due_date: '' });
   const [proposal, setProposal] = useState({
@@ -140,6 +150,8 @@ export default function ConsolePage() {
       setMsg(null); // after await — not a synchronous setState in the effect
       setDebtors((d.debtors || []) as unknown as Debtor[]);
       setCreditors((d.creditors || []) as unknown as Creditor[]);
+      setLoans((d.loans || []) as unknown as Loan[]);
+      setCompliance((d.compliance || []) as unknown as Compliance[]);
       if (d.proposal) setProposal(propFromRow(d.proposal));
       const f = d.financials;
       if (f) {
@@ -169,6 +181,8 @@ export default function ConsolePage() {
         setMsg(null);
         setDebtors((d.debtors || []) as unknown as Debtor[]);
         setCreditors((d.creditors || []) as unknown as Creditor[]);
+        setLoans((d.loans || []) as unknown as Loan[]);
+        setCompliance((d.compliance || []) as unknown as Compliance[]);
         if (d.proposal) setProposal(propFromRow(d.proposal));
         const f = d.financials;
         if (f) {
@@ -277,6 +291,8 @@ export default function ConsolePage() {
         <TabBtn id="proposal" label="Proposal" active={tab} onSelect={setTab} />
         <TabBtn id="debtors" label={`Money In (${debtors.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="creditors" label={`Money Out (${creditors.length})`} active={tab} onSelect={setTab} />
+        <TabBtn id="loans" label={`Loans (${loans.length})`} active={tab} onSelect={setTab} />
+        <TabBtn id="compliance" label={`Compliance (${compliance.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="documents" label="Documents" active={tab} onSelect={setTab} />
       </div>
     </div>
@@ -470,6 +486,50 @@ export default function ConsolePage() {
                       value={newDebtor.days_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, days_outstanding: e.target.value })} />
                     <button onClick={onAddDebtor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add customer</button>
                   </AddCard>
+                </section>
+              )}
+
+              {/* LOANS — read-only view of existing facilities (§4 Loans tab) */}
+              {tab === 'loans' && (
+                <section className="space-y-5 rise">
+                  <ListCard<Loan>
+                    rows={loans}
+                    cols={[
+                      { h: 'Facility', get: (r) => r.loan_type || '—', primary: true },
+                      { h: 'Lender', get: (r) => r.lender || '—' },
+                      { h: 'Sanctioned', get: (r) => inr(r.sanctioned_amount) },
+                      { h: 'Outstanding', get: (r) => inr(r.outstanding_balance) },
+                      { h: 'EMI', get: (r) => inr(r.emi_amount) },
+                      { h: 'Rate', get: (r) => (r.interest_rate != null ? `${r.interest_rate}%` : '—') },
+                      { h: 'Next due', get: (r) => fmtDate(r.next_due_date) },
+                    ]}
+                    empty="No loans on file for this client. Facilities entered in the loans table appear here."
+                  />
+                </section>
+              )}
+
+              {/* COMPLIANCE — GST/TDS/PF/ESI filing status (§4 Compliance tab) */}
+              {tab === 'compliance' && (
+                <section className="space-y-5 rise">
+                  <ListCard<Compliance>
+                    rows={compliance}
+                    cols={[
+                      { h: 'Filing', get: (r) => r.filing_type || '—', primary: true },
+                      { h: 'Period', get: (r) => r.period ?? '—' },
+                      { h: 'Due', get: (r) => fmtDate(r.due_date) },
+                      { h: 'Filed', get: (r) => fmtDate(r.filed_date) },
+                      { h: 'Amount', get: (r) => inr(r.amount) },
+                      {
+                        h: 'Status',
+                        get: (r) => (
+                          <span style={{ color: complianceColor(r.status), fontWeight: 700, textTransform: 'capitalize' }}>
+                            {r.status ?? '—'}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    empty="No compliance filings on file for this client. GST/TDS/PF/ESI filings appear here."
+                  />
                 </section>
               )}
 
