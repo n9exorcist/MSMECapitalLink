@@ -24,7 +24,7 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 ## 🔧 Built but NOT wired (fix, don't rebuild)
 
 - [~] Auth `verify_supabase_token` exists but **commented out on every route → all endpoints open** (P1, security)
-- [~] AI daily-briefing router exists but **not mounted** in `main.py`; uses stale model `claude-3-5-sonnet-20240620` (P2)
+- [x] AI daily-briefing router **mounted** (`/ai/daily-briefing/{id}/draft|publish`), model bumped to `claude-haiku-4-5`; grounded rules fallback when no API key (P2)
 - [~] `refresh_all_scores()` exists but **nothing calls it** — no schedule (P1)
 - [~] Tables with no endpoints: `loans`, `actions`, `monthly_sales`, `compliance_filings` (last two seeded via raw SQL)
 
@@ -52,10 +52,16 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 
 ## Deep-dive tabs needing a backend (§4.2)
 
-- [ ] 3-year financials trend + industry benchmarks (P3)
-- [ ] Banking · GST · Compliance (TDS/PF/ESI/ROC) tabs (P1–P3)
-- [ ] Loans · Green profile · Documents · Activity log tabs (P2/P3)
-- [ ] CMA / Reports · Subscription / billing tabs (P2/P4)
+- [x] Financials **Trends** tab — period-over-period from `msme_financials` history (industry benchmarks still pending) (P3)
+- [x] **Banking** tab — parsed bank-statement position + history from `cash_position` (P1)
+- [x] **Compliance** tab — GST/TDS/PF/ESI filing status from `compliance_filings` (P1)
+- [ ] **GST recon** tab — needs GSTR-1 ↔ 3B (only GSTR-3B captured today) (P1)
+- [x] **Loans** tab — facilities from `loans` (P2)
+- [x] **Documents** tab — upload + parse + list (P2)
+- [x] **Activity** tab — merged read-only feed (`GET /msme/{id}/activity`) over score_history + documents + bureau pulls + filings (P3)
+- [ ] Green profile tab (P3)
+- [x] CMA / Reports — served by the document engine (Health → Bank Proposal → CMA → DPR → Green) (P2/P3)
+- [ ] Subscription / billing tab (P4)
 
 ## Banker-grade tools (§7) — the differentiator, mostly unbuilt
 
