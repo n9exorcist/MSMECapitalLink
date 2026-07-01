@@ -106,13 +106,11 @@ export default function HomeDashboard() {
     // (compliance_filings) + Sales Trend (monthly_sales) + Cash Runway (cash_position).
     // All six metric cards are now sourced from real data.
     const primaryLoan = loans[0] ?? null; // largest sanctioned
+    // Only money-in/out come from useDashboardData; the other four tiles are computed
+    // below from their own live hooks (cash_position, loans, compliance_filings, monthly_sales).
     const m = mfosData?.metrics ?? {
         moneyIn: { total: 0, count: 0, overdueCount: 0 },
         moneyOut: { total: 0, count: 0, weekAmount: 0 },
-        cashRunway: { days: 0, cash: 0, accounts: 0 },
-        nextEmi: { amount: 0, date: '', bank: '', overdue: false },
-        compliance: { status: 'Pending', filing: '', daysLeft: 0 },
-        sales: { pct: 0, thisMonth: 0, up: false },
     };
 
     // ── GST & Tax — LIVE from compliance_filings (replaces mock m.compliance) ──

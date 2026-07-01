@@ -11,9 +11,10 @@ import { supabase } from '../lib/supabase';
 //     `previous_score` / `score_delta` and return null when there's no real anchor.
 //  3. overdueCount filtered on `days_past_due` (doesn't exist on debtors). The column
 //     is `days_outstanding`. Fixed.
-//  4. cashRunway / nextEmi / compliance / sales are still MOCK — there is no data-entry
-//     path for them yet (the console only captures financials, debtors, creditors).
-//     They're labelled `mock: true` so the UI can show them honestly until wired.
+//  4. cashRunway / nextEmi / compliance / sales USED to be mock here. They are now
+//     sourced live on the Home screen from dedicated hooks (useCashPosition, useLoans,
+//     useComplianceFilings, useMonthlySales), so this hook only returns the score +
+//     money-in/out it owns. No mock metrics remain.
 
 // Owner app stays jargon-free: map the console's A/B/C/D bands to plain words.
 const BAND_LABEL: Record<string, string> = {
@@ -73,6 +74,8 @@ export function useDashboardData(msmeId: string) {
 
                 metrics: {
                     // ── REAL — same tables the console writes, so these stay in sync ──────
+                    // Cash Runway, Next EMI, GST & Tax and Sales Trend are NOT here: the
+                    // Home screen sources them live from their own hooks (see file header).
                     moneyIn: {
                         total: (debtors ?? []).reduce((a, d) => a + (Number(d.amount_outstanding) || 0), 0),
                         count: debtors?.length ?? 0,
@@ -85,12 +88,6 @@ export function useDashboardData(msmeId: string) {
                         count: creditors?.length ?? 0,
                         weekAmount: 0, // TODO: sum creditors with due_date within 7 days once that field is set
                     },
-
-                    // ── MOCK — no source yet. Labelled so the UI can flag them honestly. ──
-                    cashRunway: { days: 28, cash: 8.2, accounts: 3, mock: true },
-                    nextEmi: { amount: 1.5, date: '14 Jun', bank: 'Canara', overdue: false, mock: true },
-                    compliance: { status: 'On Track', filing: 'GSTR-3B', daysLeft: 5, mock: true },
-                    sales: { pct: 12, thisMonth: 18.4, up: true, mock: true },
                 },
 
                 actions: actions ?? [],
