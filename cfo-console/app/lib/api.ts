@@ -47,8 +47,11 @@ async function post(path: string, body: unknown) {
 // ── Portfolio list (used by the /console dashboard) ──
 export interface ClientRow {
     id: string; company: string; owner?: string; sector?: string;
+    msme_class?: string; location?: string;
     turnover?: number; health_score?: number; band?: string;
+    provisional?: boolean; data_completeness?: number; score_delta?: number;
     last_update?: string; risk?: string;
+    phone?: string; email?: string;
 }
 
 export const listClients = (): Promise<{ clients: ClientRow[] }> => get('/msme/clients');

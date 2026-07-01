@@ -138,8 +138,8 @@ export default function ConsolePage() {
     try {
       const d = await getEntry(id);
       setMsg(null); // after await — not a synchronous setState in the effect
-      setDebtors(d.debtors || []);
-      setCreditors(d.creditors || []);
+      setDebtors((d.debtors || []) as unknown as Debtor[]);
+      setCreditors((d.creditors || []) as unknown as Creditor[]);
       if (d.proposal) setProposal(propFromRow(d.proposal));
       const f = d.financials;
       if (f) {
@@ -167,8 +167,8 @@ export default function ConsolePage() {
         const d = await getEntry(routeId);
         if (ignore) return;
         setMsg(null);
-        setDebtors(d.debtors || []);
-        setCreditors(d.creditors || []);
+        setDebtors((d.debtors || []) as unknown as Debtor[]);
+        setCreditors((d.creditors || []) as unknown as Creditor[]);
         if (d.proposal) setProposal(propFromRow(d.proposal));
         const f = d.financials;
         if (f) {
