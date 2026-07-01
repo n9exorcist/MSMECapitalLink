@@ -40,6 +40,19 @@ const fmtDate = (s?: string) => {
   return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
 };
 
+// Stale-data triage (spec §3.2): a client whose data hasn't been refreshed in >14 days.
+const STALE_DAYS = 14;
+const daysSince = (s?: string): number | null => {
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : Math.floor((Date.now() - d.getTime()) / 86_400_000);
+};
+const isStale = (s?: string) => {
+  const n = daysSince(s);
+  return n != null && n > STALE_DAYS;
+};
+const digits = (s?: string) => (s || '').replace(/\D/g, '');
+
 type SortKey = 'company' | 'sector' | 'turnover' | 'health_score' | 'data_completeness' | 'score_delta' | 'last_update';
 const sortVal = (c: ClientRow, k: SortKey): string | number => {
   switch (k) {
@@ -65,6 +78,7 @@ export default function ConsoleDashboard() {
   const [band, setBand] = useState('all');
   const [risk, setRisk] = useState('all');
   const [sector, setSector] = useState('all');
+  const [freshness, setFreshness] = useState('all');   // 'all' | 'stale'
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'health_score', dir: 'desc' });
 
   useEffect(() => {
@@ -86,6 +100,7 @@ export default function ConsoleDashboard() {
       if (band !== 'all' && c.band !== band) return false;
       if (risk !== 'all' && (c.risk ?? 'none') !== risk) return false;
       if (sector !== 'all' && c.sector !== sector) return false;
+      if (freshness === 'stale' && !isStale(c.last_update)) return false;
       return true;
     });
     const { key, dir } = sort;
@@ -110,6 +125,7 @@ export default function ConsoleDashboard() {
       green: rows.filter((r) => (r.risk ?? 'none') === 'none').length,
       yellow: rows.filter((r) => r.risk === 'yellow').length,
       red: rows.filter((r) => r.risk === 'red').length,
+      stale: rows.filter((r) => isStale(r.last_update)).length,
     };
   }, [filtered]);
 
@@ -129,8 +145,8 @@ export default function ConsoleDashboard() {
     }
   }
 
-  const resetFilters = () => { setQ(''); setBand('all'); setRisk('all'); setSector('all'); };
-  const filtersActive = q || band !== 'all' || risk !== 'all' || sector !== 'all';
+  const resetFilters = () => { setQ(''); setBand('all'); setRisk('all'); setSector('all'); setFreshness('all'); };
+  const filtersActive = q || band !== 'all' || risk !== 'all' || sector !== 'all' || freshness !== 'all';
 
   return (
     <div style={{ color: C.text }} className="min-h-screen pb-16">
@@ -167,12 +183,18 @@ export default function ConsoleDashboard() {
         )}
 
         {/* AGGREGATE WIDGETS */}
-        <section className="mt-5 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
+        <section className="mt-5 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
           <Stat label="Clients" value={String(agg.n)} sub={filtersActive ? 'in view' : 'total'} />
           <Stat label="Avg health" value={String(agg.avg)} sub="/ 100" />
           <Stat label="Certified" value={String(agg.certified)} sub="bank-ready" color={C.green} />
           <Stat label="Provisional" value={String(agg.provisional)} sub="need evidence" color={C.amber} />
           <Stat label="Portfolio turnover" value={inrCr(agg.turnover)} sub="combined" />
+          <Stat
+            label="Stale data" value={String(agg.stale)} sub={`> ${STALE_DAYS} days`}
+            color={agg.stale ? C.amber : C.green}
+            onClick={agg.stale ? () => setFreshness((f) => (f === 'stale' ? 'all' : 'stale')) : undefined}
+            active={freshness === 'stale'}
+          />
           <Stat label="Risk split" sub="OK · watch · high" custom={
             <div className="flex items-center gap-2 mt-1">
               <RiskCount n={agg.green} color={C.green} />
@@ -193,6 +215,7 @@ export default function ConsoleDashboard() {
           <Select value={band} onChange={setBand} options={[['all', 'All bands'], ['EXCELLENT', 'A · Excellent'], ['GOOD', 'B · Good'], ['MEDIUM', 'C · Medium'], ['POOR', 'D · Poor']]} />
           <Select value={risk} onChange={setRisk} options={[['all', 'All risk'], ['none', 'OK'], ['yellow', 'Watch'], ['red', 'High']]} />
           <Select value={sector} onChange={setSector} options={[['all', 'All sectors'], ...sectors.map((s) => [s, s])]} />
+          <Select value={freshness} onChange={setFreshness} options={[['all', 'All data'], ['stale', `Stale > ${STALE_DAYS}d`]]} />
           {filtersActive && (
             <button onClick={resetFilters} className="text-sm font-semibold px-3 py-2 rounded-lg" style={{ color: C.sub }}>Reset</button>
           )}
@@ -264,15 +287,20 @@ export default function ConsoleDashboard() {
                         style={{ color: delta == null || delta === 0 ? C.muted : delta > 0 ? C.green : C.red }}>
                         {delta == null ? '—' : delta > 0 ? `+${delta}` : String(delta)}
                       </td>
-                      <td className="px-3 py-3 text-right num text-xs" style={{ color: C.sub }}>{fmtDate(c.last_update)}</td>
+                      <td className="px-3 py-3 text-right num text-xs" style={{ color: isStale(c.last_update) ? C.amber : C.sub }}>
+                        {fmtDate(c.last_update)}
+                        {isStale(c.last_update) && <span title={`Not updated in ${daysSince(c.last_update)} days`}> ⚠</span>}
+                      </td>
                       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
                           <ActionBtn title="Open deep-dive" onClick={() => router.push(`/console/${c.id}`)}>Open</ActionBtn>
                           <ActionBtn title="Download Health Report" busy={busyId === c.id} onClick={() => onReport(c.id)}>
                             {busyId === c.id ? '…' : 'Report'}
                           </ActionBtn>
+                          <IconBtn title={c.phone ? `Call ${c.phone}` : 'No phone on file'} disabled={!c.phone}
+                            onClick={() => c.phone && (window.location.href = `tel:${digits(c.phone)}`)} color={C.teal}>☎</IconBtn>
                           <IconBtn title={c.phone ? `WhatsApp ${c.phone}` : 'No phone on file'} disabled={!c.phone}
-                            onClick={() => c.phone && window.open(`https://wa.me/${c.phone.replace(/\D/g, '')}`, '_blank')} color="#25D366">WA</IconBtn>
+                            onClick={() => c.phone && window.open(`https://wa.me/${digits(c.phone)}`, '_blank')} color="#25D366">WA</IconBtn>
                           <IconBtn title={c.email ? `Email ${c.email}` : 'No email on file'} disabled={!c.email}
                             onClick={() => c.email && (window.location.href = `mailto:${c.email}`)} color={C.navy2}>@</IconBtn>
                         </div>
@@ -291,9 +319,18 @@ export default function ConsoleDashboard() {
 
 /* ── sub-components ── */
 
-function Stat({ label, value, sub, color, custom }: { label: string; value?: string; sub?: string; color?: string; custom?: ReactNode }) {
+function Stat({ label, value, sub, color, custom, onClick, active }: { label: string; value?: string; sub?: string; color?: string; custom?: ReactNode; onClick?: () => void; active?: boolean }) {
   return (
-    <div className="card-gloss card-static tile-sheen relative rounded-2xl px-4 py-3 overflow-hidden">
+    <div
+      onClick={onClick}
+      className="card-gloss card-static tile-sheen relative rounded-2xl px-4 py-3 overflow-hidden"
+      style={{
+        cursor: onClick ? 'pointer' : undefined,
+        outline: active ? `2px solid ${C.amber}` : undefined,
+        outlineOffset: active ? -2 : undefined,
+      }}
+      title={onClick ? 'Filter to stale clients' : undefined}
+    >
       <div className="eyebrow">{label}</div>
       {custom ?? <div className="font-extrabold num mt-1" style={{ fontSize: 22, color: color ?? C.navy }}>{value}</div>}
       {sub && <div className="text-[11px] mt-0.5" style={{ color: C.muted }}>{sub}</div>}
