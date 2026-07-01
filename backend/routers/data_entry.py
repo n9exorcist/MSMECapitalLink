@@ -118,6 +118,9 @@ def get_entry(msme_id: str, db=Depends(get_db)):
     ent = ent[0] if ent else {}
     fin = (db.table("msme_financials").select("*").eq("msme_id", msme_id)
            .order("created_at", desc=True).limit(1).execute().data or [])
+    # full period history (chronological) — drives the Financials Trends tab.
+    fin_hist = (db.table("msme_financials").select("*").eq("msme_id", msme_id)
+                .order("created_at", desc=False).limit(24).execute().data or [])
     debtors = (db.table("debtors").select("*").eq("msme_id", msme_id)
                .order("amount_outstanding", desc=True).execute().data or [])
     creditors = (db.table("creditors").select("*").eq("msme_id", msme_id)
@@ -152,6 +155,7 @@ def get_entry(msme_id: str, db=Depends(get_db)):
         "company": ent.get("company_name") or ent.get("name"),
         "owner": ent.get("owner_name") or ent.get("owner"),
         "financials": fin[0] if fin else None,
+        "financials_history": fin_hist,
         "debtors": debtors,
         "creditors": creditors,
         "proposal": prop[0] if prop else None,

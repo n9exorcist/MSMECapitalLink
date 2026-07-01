@@ -20,7 +20,7 @@ const C = {
   green: '#059669', greenBg: '#ECFDF5', amber: '#D97706', red: '#DC2626',
 };
 
-type Tab = 'overview' | 'financials' | 'proposal' | 'debtors' | 'creditors' | 'banking' | 'loans' | 'compliance' | 'documents';
+type Tab = 'overview' | 'financials' | 'trends' | 'proposal' | 'debtors' | 'creditors' | 'banking' | 'loans' | 'compliance' | 'documents';
 type Msg = { kind: 'ok' | 'err'; text: string };
 
 interface Debtor { id?: string; name: string; amount_outstanding?: number; days_outstanding?: number; status?: string }
@@ -32,6 +32,12 @@ interface CashPos {
   closing_balance?: number; opening_balance?: number; total_inflow?: number;
   total_outflow?: number; avg_daily_outflow?: number; accounts_count?: number;
   account_type?: string; source?: string;
+}
+interface FinRow {
+  period_label?: string; period_year?: number; period_month?: number; created_at?: string;
+  projected_annual_turnover?: number; ebit?: number; net_profit_after_tax?: number;
+  current_assets?: number; current_liabilities?: number;
+  total_outside_liabilities?: number; tangible_net_worth?: number;
 }
 
 const FIN_GROUPS: { title: string; fields: { key: string; label: string }[] }[] = [
@@ -105,6 +111,12 @@ const fmtDate = (s?: string | null) => {
   return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
 };
 const complianceColor = (s?: string) => (s === 'pending' ? C.amber : s === 'filed' ? C.green : C.muted);
+// trend helpers — safe division + display formatters
+const ratio = (n?: number | null, d?: number | null) => (d != null && d !== 0 && n != null ? n / d : null);
+const pct1 = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`);
+const x2 = (v: number | null) => (v == null ? '—' : `${v.toFixed(2)}×`);
+const periodLabel = (r: FinRow) =>
+  r.period_label || (r.period_year ? `${r.period_year}${r.period_month ? '-' + String(r.period_month).padStart(2, '0') : ''}` : fmtDate(r.created_at));
 
 type Row = Record<string, string | number | boolean | null | undefined>;
 const propFromRow = (p: Row | null) => ({
@@ -139,6 +151,7 @@ export default function ConsolePage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [compliance, setCompliance] = useState<Compliance[]>([]);
   const [banking, setBanking] = useState<CashPos[]>([]);
+  const [finHist, setFinHist] = useState<FinRow[]>([]);
   const [newDebtor, setNewDebtor] = useState({ name: '', amount_outstanding: '', days_outstanding: '' });
   const [newCreditor, setNewCreditor] = useState({ name: '', amount_due: '', due_date: '' });
   const [proposal, setProposal] = useState({
@@ -160,6 +173,7 @@ export default function ConsolePage() {
       setLoans((d.loans || []) as unknown as Loan[]);
       setCompliance((d.compliance || []) as unknown as Compliance[]);
       setBanking((d.banking || []) as unknown as CashPos[]);
+      setFinHist((d.financials_history || []) as unknown as FinRow[]);
       if (d.proposal) setProposal(propFromRow(d.proposal));
       const f = d.financials;
       if (f) {
@@ -192,6 +206,7 @@ export default function ConsolePage() {
         setLoans((d.loans || []) as unknown as Loan[]);
         setCompliance((d.compliance || []) as unknown as Compliance[]);
         setBanking((d.banking || []) as unknown as CashPos[]);
+        setFinHist((d.financials_history || []) as unknown as FinRow[]);
         if (d.proposal) setProposal(propFromRow(d.proposal));
         const f = d.financials;
         if (f) {
@@ -297,6 +312,7 @@ export default function ConsolePage() {
       <div className="flex min-w-max">
         <TabBtn id="overview" label="Overview" active={tab} onSelect={setTab} />
         <TabBtn id="financials" label="Financials" active={tab} onSelect={setTab} />
+        <TabBtn id="trends" label={`Trends (${finHist.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="proposal" label="Proposal" active={tab} onSelect={setTab} />
         <TabBtn id="debtors" label={`Money In (${debtors.length})`} active={tab} onSelect={setTab} />
         <TabBtn id="creditors" label={`Money Out (${creditors.length})`} active={tab} onSelect={setTab} />
@@ -496,6 +512,33 @@ export default function ConsolePage() {
                       value={newDebtor.days_outstanding} onChange={(e) => setNewDebtor({ ...newDebtor, days_outstanding: e.target.value })} />
                     <button onClick={onAddDebtor} disabled={busy} style={navyBtnStyle} className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">Add customer</button>
                   </AddCard>
+                </section>
+              )}
+
+              {/* TRENDS — multi-period financials from msme_financials history (§4).
+                  Ratios computed client-side; CA/CL falls back to TOL like the engine. */}
+              {tab === 'trends' && (
+                <section className="space-y-5 rise">
+                  {finHist.length < 2 && (
+                    <div style={{ color: C.sub, borderColor: C.border }} className="rounded-xl border bg-white/70 px-4 py-3 text-sm">
+                      {finHist.length === 0
+                        ? 'No financial periods on file yet. Save a period in the Financials tab and it appears here.'
+                        : 'Only one period on file — save another reporting period in the Financials tab to see period-over-period trends.'}
+                    </div>
+                  )}
+                  <ListCard<FinRow>
+                    rows={finHist}
+                    cols={[
+                      { h: 'Period', get: (r) => periodLabel(r), primary: true },
+                      { h: 'Turnover', get: (r) => inr(r.projected_annual_turnover) },
+                      { h: 'EBIT', get: (r) => inr(r.ebit) },
+                      { h: 'PAT', get: (r) => inr(r.net_profit_after_tax) },
+                      { h: 'PAT margin', get: (r) => pct1(ratio(r.net_profit_after_tax, r.projected_annual_turnover)) },
+                      { h: 'Current ratio', get: (r) => x2(ratio(r.current_assets, r.current_liabilities || r.total_outside_liabilities)) },
+                      { h: 'TOL/TNW', get: (r) => x2(ratio(r.total_outside_liabilities, r.tangible_net_worth)) },
+                    ]}
+                    empty="No financial periods on file yet. Save a period in the Financials tab and it appears here."
+                  />
                 </section>
               )}
 

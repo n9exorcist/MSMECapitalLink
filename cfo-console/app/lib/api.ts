@@ -102,6 +102,7 @@ export interface EntryData {
     company: string | null;
     owner: string | null;
     financials: Row | null;
+    financials_history: Row[];
     debtors: Row[];
     creditors: Row[];
     proposal: Row | null;
