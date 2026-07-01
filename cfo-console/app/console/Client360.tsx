@@ -12,11 +12,11 @@ import { downloadDocument } from '../lib/api';
 const DOC_TILES: { title: string; sub: string; key?: string }[] = [
   { title: 'MSME Health Report', sub: '4–9 pp · for the owner', key: 'health' },
   { title: 'Bank Proposal Pack', sub: '25–30 pp · credit committee', key: 'bank_proposal' },
-  { title: 'CMA Data Sheet (IBA)', sub: '6–8 pp · bank format' },
+  { title: 'CMA Data Sheet (IBA)', sub: '6–8 pp · bank format', key: 'cma' },
   { title: 'Project Report / DPR', sub: '20–40 pp · term loan' },
   { title: 'WC Limit Renewal', sub: '5–8 pp · CC/OD renewal', key: 'wc_renewal' },
   { title: 'Migration Pathway Plan', sub: '6–8 pp · NBFC → PSU', key: 'migration' },
-  { title: 'Green Opportunity Report', sub: '8–12 pp · solar / CBAM' },
+  { title: 'Green Opportunity Report', sub: '8–12 pp · solar / CBAM', key: 'green' },
   { title: 'Annual Business Review', sub: '10–15 pp · year-end', key: 'annual_review' },
 ];
 

@@ -13,6 +13,8 @@ from reports.wc_context import build_wc_renewal_context
 from reports.migration_context import build_migration_context
 from reports.annual_context import build_annual_review_context
 from reports.bank_proposal_context import build_bank_proposal_context
+from reports.cma_context import build_cma_context
+from reports.green_context import build_green_context
 
 
 @dataclass(frozen=True)
@@ -65,6 +67,22 @@ REGISTRY: Dict[str, DocSpec] = {
         template="bank_proposal.html",
         context_builder=build_bank_proposal_context,
         filename_prefix="MFOS_Bank_Proposal",
+    ),
+    "cma": DocSpec(
+        key="cma",
+        title="CMA Data Sheet (IBA)",
+        subtitle="6–8 pp · bank format",
+        template="cma_data_sheet.html",
+        context_builder=build_cma_context,
+        filename_prefix="MFOS_CMA_Data",
+    ),
+    "green": DocSpec(
+        key="green",
+        title="Green Opportunity Report",
+        subtitle="8–12 pp · solar / CBAM",
+        template="green_opportunity.html",
+        context_builder=build_green_context,
+        filename_prefix="MFOS_Green_Opportunity",
     ),
 }
 

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MFOS CMA Data Sheet — {{ client_name }}</title>
+<style>
+  :root{
+    --navy:#0B2E4F; --navy2:#103F6B; --ink:#0F172A; --sub:#475569; --muted:#8595A8;
+    --teal:#0F766E; --teal2:#14B8A6; --tealwash:#ECFDFA;
+    --amber:#B45309; --amberwash:#FFF7ED; --red:#C0392B; --redwash:#FDF2F0; --green:#157F5B;
+    --line:#E2EAF4; --line2:#D3DEEC; --paper:#FFFFFF; --wash:#F5F8FC;
+  }
+  *{box-sizing:border-box;}
+  @page{ size:A4; margin:0; }
+  html,body{margin:0;padding:0;}
+  body{ font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; color:var(--ink);
+    font-size:10.2px; line-height:1.5; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .num{ font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+  .page{ width:210mm; min-height:297mm; background:var(--paper); page-break-after:always; position:relative; overflow:hidden; }
+  .page:last-child{ page-break-after:auto; }
+  .pad{ padding:16mm 16mm 22mm; }
+  .runhead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:1.5px solid var(--navy); padding-bottom:7px; margin-bottom:18px; }
+  .runhead .eyebrow{ font-size:8.4px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--navy); }
+  .runhead .doc{ font-size:8.4px; font-weight:600; letter-spacing:.05em; color:var(--muted); }
+  .foot{ position:absolute; left:16mm; right:16mm; bottom:11mm; display:flex; justify-content:space-between; align-items:center;
+    border-top:1px solid var(--line); padding-top:7px; font-size:7.6px; color:var(--muted); letter-spacing:.02em; }
+  .foot b{ color:var(--sub); font-weight:700; }
+  .sec-no{ font-size:8px; font-weight:800; letter-spacing:.18em; color:var(--teal); text-transform:uppercase; }
+  h2.sec{ font-family:Georgia,serif; font-size:19px; font-weight:700; color:var(--navy); margin:2px 0 3px; letter-spacing:-.01em; }
+  .sec-sub{ font-size:9.4px; color:var(--sub); margin:0 0 16px; max-width:155mm; }
+  .lead{ font-family:Georgia,serif; font-size:12.5px; line-height:1.55; color:var(--navy); margin:0 0 14px; }
+
+  /* cover */
+  .cover{ color:#EAF3FB; background:
+      radial-gradient(680px 320px at 86% -8%, rgba(20,184,166,.22), transparent 60%),
+      radial-gradient(560px 360px at -8% 110%, rgba(94,234,212,.10), transparent 55%),
+      linear-gradient(158deg,#0A2A47 0%,var(--navy2) 60%,#0E3A60 100%);
+    padding:20mm 18mm; display:flex; flex-direction:column; min-height:297mm; }
+  .cv-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .brandmark{ display:flex; align-items:center; gap:11px; }
+  .brandmark .logo{ width:34px;height:34px;border-radius:9px; background:linear-gradient(180deg,var(--teal2),var(--teal));
+    display:flex;align-items:center;justify-content:center; font-family:Georgia,serif; font-weight:700; font-size:18px; color:#06231F; }
+  .brandmark .bt{ font-family:Georgia,serif; font-size:17px; font-weight:700; color:#fff; line-height:1; }
+  .brandmark .bs{ font-size:7.8px; font-weight:700; letter-spacing:.22em; color:#7FE3D4; text-transform:uppercase; margin-top:3px; }
+  .cv-meta{ text-align:right; font-size:8.2px; color:#9FC6E6; letter-spacing:.04em; line-height:1.7; }
+  .cv-kicker{ margin-top:46mm; font-size:9px; font-weight:800; letter-spacing:.3em; text-transform:uppercase; color:#6FD9C8; }
+  .cv-title{ font-family:Georgia,serif; font-size:40px; font-weight:700; line-height:1.05; color:#fff; margin:8px 0 0; letter-spacing:-.015em; }
+  .cv-title .thin{ display:block; font-size:21px; font-weight:400; color:#BFE0F5; margin-top:6px; }
+  .cv-client{ margin-top:10mm; padding:16px 18px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); }
+  .cv-client .nm{ font-family:Georgia,serif; font-size:22px; font-weight:700; color:#fff; }
+  .cv-client .ow{ font-size:9.6px; color:#BFE0F5; margin-top:3px; }
+  .cv-client .row{ display:flex; gap:26px; margin-top:11px; flex-wrap:wrap; }
+  .cv-client .row .k{ font-size:7.6px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#7FA8CC; }
+  .cv-client .row .v{ font-size:10px; color:#EAF3FB; font-weight:600; margin-top:1px; }
+  .cv-verdict{ margin-top:auto; display:flex; align-items:flex-end; gap:14px; }
+  .vbox .lab{ font-size:8.4px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#7FA8CC; }
+  .vbox .word{ font-family:Georgia,serif; font-size:40px; font-weight:700; color:#fff; line-height:1; margin-top:4px; }
+  .vbox .word small{ font-size:18px; color:#6FD9C8; font-weight:400; margin-left:6px; }
+  .vbox .band{ font-size:9px; color:#BFE0F5; margin-top:9px; } .vbox .band b{ color:#fff; }
+  .vsep{ width:1px; align-self:stretch; background:rgba(255,255,255,.18); }
+
+  .hero{ display:flex; align-items:center; justify-content:space-between; gap:18px; border-radius:14px; padding:16px 20px; margin:2px 0 16px;
+    background:linear-gradient(160deg,#0A2A47,var(--navy2)); color:#fff; }
+  .hero .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#7FE3D4; }
+  .hero .big{ font-family:Georgia,serif; font-size:32px; font-weight:700; line-height:1; margin-top:4px; } .hero .big small{ font-size:15px; color:#BFE0F5; font-weight:400; margin-left:6px; }
+  .hero .sub{ font-size:9px; color:#BFE0F5; margin-top:5px; }
+  .hero .right{ text-align:right; } .hero .right .k{ font-size:7.4px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9FC6E6; }
+  .hero .right .v{ font-size:12px; font-weight:700; margin-top:2px; }
+
+  .twocol{ display:flex; gap:18px; } .lcol{ flex:1; }
+
+  .kvtab{ width:100%; border-collapse:collapse; }
+  .kvtab td{ padding:6.5px 0; border-bottom:1px solid var(--line); font-size:9.6px; }
+  .kvtab td.k{ color:var(--sub); } .kvtab td.v{ text-align:right; font-weight:700; color:var(--navy); }
+  .kvtab tr.head td{ border-bottom:1.5px solid var(--navy); font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding-top:0; }
+  .kvtab tr.sum td{ border-top:1.5px solid var(--navy); border-bottom:0; font-family:Georgia,serif; font-size:11px; color:var(--teal); padding-top:8px; font-weight:700; }
+  .kvtab tr.strong td{ font-weight:800; color:var(--navy); border-bottom:1.5px solid var(--line2); }
+  .kvtab tr.strong td.v{ color:var(--navy); }
+
+  table.tb{ width:100%; border-collapse:collapse; }
+  .tb th{ font-size:8px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right; padding:8px 6px; border-bottom:1.5px solid var(--navy); }
+  .tb th:first-child{ text-align:left; }
+  .tb td{ padding:7.5px 6px; border-bottom:1px solid var(--line); text-align:right; font-size:9.6px; }
+  .tb td:first-child{ text-align:left; font-weight:600; color:var(--navy); }
+  .tb tr.b td{ font-weight:800; border-bottom:1.5px solid var(--line2); }
+  .tb tr.b td:first-child{ color:var(--navy); }
+  .nil{ font-size:9.4px; color:var(--sub); padding:12px 14px; background:var(--wash); border-radius:10px; }
+
+  .chips{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .chip{ flex:1; min-width:90px; border:1px solid var(--line); border-radius:11px; padding:10px 13px; }
+  .chip .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .chip .v{ font-family:Georgia,serif; font-size:17px; font-weight:700; color:var(--navy); margin-top:2px; }
+  .chip .s{ font-size:8px; color:var(--sub); margin-top:2px; }
+
+  .recobox{ border:1.5px solid var(--teal); border-radius:14px; overflow:hidden; margin:16px 0 4px; }
+  .recobox .rh{ background:linear-gradient(160deg,#0A2A47,var(--navy2)); color:#fff; padding:15px 18px; }
+  .recobox .rh .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#7FE3D4; }
+  .recobox .rh .big{ font-family:Georgia,serif; font-size:26px; font-weight:700; margin-top:4px; line-height:1.2; } .recobox .rh .big small{ font-size:14px; color:#BFE0F5; font-weight:400; margin-left:6px; }
+  .recobox .rb{ padding:13px 18px; display:flex; gap:22px; }
+  .recobox .rb .item .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .recobox .rb .item .v{ font-size:10px; font-weight:700; color:var(--navy); margin-top:2px; }
+
+  /* sales-trend strip */
+  .trend{ display:flex; align-items:flex-end; gap:16px; height:118px; padding:14px 16px 0; border:1px solid var(--line); border-radius:12px; background:var(--wash); margin-top:6px; }
+  .tcol{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .tbar{ width:44px; border-radius:6px 6px 0 0; background:linear-gradient(180deg,var(--teal2),var(--teal)); }
+  .tcol.peak .tbar{ background:linear-gradient(180deg,#F0B86A,var(--amber)); }
+  .tval{ font-family:Georgia,serif; font-size:12px; font-weight:700; color:var(--navy); margin-bottom:5px; }
+  .tlab{ font-size:8px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-top:7px; }
+
+  .note{ margin-top:14px; padding:11px 14px; background:var(--wash); border-radius:10px; font-size:8.6px; color:var(--sub); line-height:1.5; }
+  .note b{ color:var(--navy); }
+  .disclaimer{ margin-top:14px; padding:12px 14px; background:var(--wash); border-radius:10px; font-size:8px; color:var(--muted); line-height:1.5; }
+  .disclaimer b{ color:var(--sub); }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 — COVER -->
+<section class="page cover">
+  <div class="cv-top">
+    <div class="brandmark"><div class="logo">M</div><div><div class="bt">MFOS</div><div class="bs">MSME Financial OS</div></div></div>
+    <div class="cv-meta">Prepared for the lender's credit desk<br>Financials as of <b style="color:#EAF3FB">{{ period_label }}</b> (audited)<br>Issued {{ issued_long }} &middot; Advisor: {{ advisor }}</div>
+  </div>
+  <div class="cv-kicker">Credit Monitoring Arrangement &middot; Bank Format</div>
+  <div class="cv-title">CMA Data Sheet
+    <span class="thin">IBA-format operating, financial-position &amp; MPBF statement</span>
+  </div>
+  <div class="cv-client">
+    <div class="nm">{{ client_name }}</div>
+    <div class="ow">Proprietor: {{ owner }} &middot; {{ sector }} &middot; {{ msme_class }} enterprise</div>
+    <div class="row">
+      <div><div class="k">GSTIN</div><div class="v num">{{ gstin }}</div></div>
+      <div><div class="k">PAN</div><div class="v num">{{ pan }}</div></div>
+      <div><div class="k">Location</div><div class="v">{{ location }}</div></div>
+      <div><div class="k">Auditor</div><div class="v">{{ auditor }}</div></div>
+    </div>
+  </div>
+  <div class="cv-verdict">
+    <div class="vbox"><div class="lab">Permissible bank finance</div><div class="word num">&#8377;{{ proposed_cc_cr }}<small>Cr</small></div><div class="band">Tandon Method II &middot; capped by {{ mpbf.binding }}</div></div>
+    <div class="vsep"></div>
+    <div class="vbox"><div class="lab">Health score</div><div class="word num">{{ score }}<small>/100</small></div><div class="band"><b>{{ band_word }}</b> &middot; CIBIL {{ cibil }}</div></div>
+  </div>
+</section>
+
+<!-- PAGE 2 — FORM I : BORROWER PARTICULARS & FACILITIES -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; CMA Data</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">Form I &mdash; Particulars</div>
+    <h2 class="sec">Borrower &amp; Credit Facilities</h2>
+    <div class="twocol">
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Borrower</td><td style="text-align:right;">Particulars</td></tr>
+        <tr><td class="k">Trade name</td><td class="v">{{ client_name }}</td></tr>
+        <tr><td class="k">Constitution</td><td class="v">{{ constitution }}</td></tr>
+        <tr><td class="k">Proprietor</td><td class="v">{{ owner }}</td></tr>
+        <tr><td class="k">Activity / sector</td><td class="v">{{ sector }}</td></tr>
+        <tr><td class="k">MSME class</td><td class="v">{{ msme_class }}</td></tr>
+        <tr><td class="k">Location</td><td class="v">{{ location }}</td></tr>
+      </table></div>
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Registration &amp; audit</td><td style="text-align:right;">Particulars</td></tr>
+        <tr><td class="k">GSTIN</td><td class="v num">{{ gstin }}</td></tr>
+        <tr><td class="k">PAN</td><td class="v num">{{ pan }}</td></tr>
+        <tr><td class="k">Proprietor CIBIL</td><td class="v num">{{ cibil }}</td></tr>
+        <tr><td class="k">Audited period</td><td class="v">{{ period_label }}</td></tr>
+        <tr><td class="k">Auditor</td><td class="v">{{ auditor }}</td></tr>
+        <tr><td class="k">Balance-sheet date</td><td class="v">{{ bs_date }}</td></tr>
+      </table></div>
+    </div>
+
+    <p class="sec-sub" style="margin:20px 0 6px;">Credit facilities</p>
+    <table class="kvtab">
+      <tr class="head"><td>Facility</td><td style="text-align:right;">Amount</td></tr>
+      <tr><td class="k">Proposed CC / OD (working capital)</td><td class="v num">{{ proposed_cc_inr }}</td></tr>
+      <tr><td class="k">Existing bank WC finance</td><td class="v num">{{ existing_cc_inr }}</td></tr>
+      <tr class="sum"><td>Permissible bank finance (MPBF II)</td><td class="v num">&#8377;{{ proposed_cc_cr }} Cr</td></tr>
+    </table>
+    {% if has_existing %}
+    <table class="tb" style="margin-top:14px;">
+      <thead><tr><th>Existing facility</th><th>Lender</th><th>Sanctioned</th><th>Outstanding</th></tr></thead>
+      <tbody>{% for f in existing %}<tr><td>{{ f.type }}</td><td style="text-align:left;font-weight:400;color:var(--sub)">{{ f.lender }}</td><td class="num">{{ f.sanctioned }}</td><td class="num">{{ f.outstanding }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}
+    <div class="nil" style="margin-top:14px;"><b>Nil existing bank finance.</b> No CC/OD or term facility is on record; the proposed limit would be the borrower's first sanctioned bank line.</div>
+    {% endif %}
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 2 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 3 — FORM II : OPERATING STATEMENT -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; CMA Data</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">Form II &mdash; Operating statement</div>
+    <h2 class="sec">Profit &amp; Loss</h2>
+    <p class="sec-sub">Audited {{ period_label }} operating statement ({{ auditor }}). Gross margin <b>{{ gross_margin }}</b> &middot; net margin <b>{{ net_margin }}</b>.</p>
+    <table class="tb">
+      <thead><tr><th>Particulars</th><th>{{ period_label }} (audited)</th></tr></thead>
+      <tbody>
+        {% for r in operating %}<tr{% if r.bold %} class="b"{% endif %}><td>{{ r.label }}</td><td class="num">{{ r.value }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+
+    <p class="sec-sub" style="margin:22px 0 6px;">Turnover trend &middot; GST-derived ({{ trend_unit }})</p>
+    <div class="trend">
+      {% for t in trend %}
+      <div class="tcol{% if t.peak %} peak{% endif %}">
+        <div class="tval num">{{ t.value }}</div>
+        <div class="tbar" style="height:{{ t.bar_h }}%"></div>
+        <div class="tlab">{{ t.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="note"><b>Note.</b> Only the {{ period_label }} column is drawn from audited accounts. Prior- and current-year turnover shown above is derived from GST filings (run-rate) for context — projected operating statements are not fabricated where audited data is absent.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 3 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 4 — FORM III : ANALYSIS OF FINANCIAL POSITION -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; CMA Data</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">Form III &mdash; Financial position</div>
+    <h2 class="sec">Analysis of Financial Position</h2>
+    <p class="sec-sub">Classified balance sheet as at {{ bs_date }}.</p>
+    <div class="twocol">
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Liabilities</td><td style="text-align:right;">{{ bs_date }}</td></tr>
+        {% for r in liabilities %}<tr{% if r.bold %} class="strong"{% endif %}><td class="k">{{ r.label }}</td><td class="v num">{{ r.value }}</td></tr>{% endfor %}
+      </table></div>
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Assets</td><td style="text-align:right;">{{ bs_date }}</td></tr>
+        {% for r in assets %}<tr{% if r.bold %} class="strong"{% endif %}><td class="k">{{ r.label }}</td><td class="v num">{{ r.value }}</td></tr>{% endfor %}
+      </table></div>
+    </div>
+    <div class="note"><b>Basis.</b> Sub-lines are classified from the audited totals: other current liabilities = total CL &minus; sundry creditors; term borrowings = total outside liabilities &minus; total CL; net fixed &amp; non-current assets balance total assets against total liabilities plus net worth.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 4 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 5 — FORM IV : COMPARATIVE CURRENT ASSETS & LIABILITIES -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; CMA Data</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">Form IV &mdash; Current assets &amp; liabilities</div>
+    <h2 class="sec">Comparative Current Assets &amp; Liabilities</h2>
+    <p class="sec-sub">Composition of the working-capital position underlying the MPBF assessment.</p>
+    <table class="tb">
+      <thead><tr><th>Current assets</th><th>{{ bs_date }}</th><th>Share</th></tr></thead>
+      <tbody>
+        {% for r in ca_rows %}<tr><td>{{ r.label }}</td><td class="num">{{ r.value }}</td><td class="num">{{ r.share }}</td></tr>{% endfor %}
+        <tr class="b"><td>Total current assets</td><td class="num">{{ total_ca_inr }}</td><td class="num">100%</td></tr>
+      </tbody>
+    </table>
+    <table class="tb" style="margin-top:20px;">
+      <thead><tr><th>Current liabilities</th><th>{{ bs_date }}</th><th>Share</th></tr></thead>
+      <tbody>
+        {% for r in cl_rows %}<tr><td>{{ r.label }}</td><td class="num">{{ r.value }}</td><td class="num">{{ r.share }}</td></tr>{% endfor %}
+        <tr class="b"><td>Total current liabilities</td><td class="num">{{ total_cl_inr }}</td><td class="num">100%</td></tr>
+      </tbody>
+    </table>
+    <div class="chips">
+      <div class="chip"><div class="k">Current ratio</div><div class="v num">{{ rb.cr.value }}</div><div class="s">Norm {{ rb.cr.norm }}</div></div>
+      <div class="chip"><div class="k">Net working capital</div><div class="v num">{{ mpbf.actual_nwc }}</div><div class="s">CA &minus; CL</div></div>
+      <div class="chip"><div class="k">WC cycle</div><div class="v num">{{ rb.wc.value }}</div><div class="s">Days</div></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 5 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 6 — FORM V : COMPUTATION OF MPBF -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; CMA Data</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">Form V &mdash; MPBF</div>
+    <h2 class="sec">Computation of Permissible Bank Finance</h2>
+    <p class="sec-sub">Tandon Committee methodology. Method II stipulates the borrower fund 25% of total current assets from long-term sources (targets a current ratio &ge; 1.33).</p>
+    <div class="twocol">
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Method I</td><td style="text-align:right;">Amount</td></tr>
+        <tr><td class="k">Total current assets</td><td class="v num">{{ mpbf.tca }}</td></tr>
+        <tr><td class="k">Less: other current liabilities</td><td class="v num">{{ mpbf.ocl }}</td></tr>
+        <tr class="strong"><td class="k">Working-capital gap</td><td class="v num">{{ mpbf.wcg }}</td></tr>
+        <tr class="sum"><td>MPBF I = 75% of gap</td><td class="v num">{{ mpbf.mpbf1 }}</td></tr>
+      </table></div>
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Method II</td><td style="text-align:right;">Amount</td></tr>
+        <tr><td class="k">75% of total current assets</td><td class="v num">{{ mpbf.tca_75 }}</td></tr>
+        <tr><td class="k">Less: other current liabilities</td><td class="v num">{{ mpbf.ocl }}</td></tr>
+        <tr class="sum"><td>MPBF II</td><td class="v num">{{ mpbf.mpbf2 }}</td></tr>
+      </table>
+      <div style="font-size:8.4px;color:var(--sub);margin-top:8px;">Actual NWC <b class="num" style="color:var(--navy)">{{ mpbf.actual_nwc }}</b> vs required 25% <b class="num">{{ mpbf.min_nwc }}</b> &rarr; {% if mpbf.nwc_ok %}<b style="color:var(--green)">surplus {{ mpbf.surplus_nwc }}</b>{% else %}<b style="color:var(--amber)">shortfall</b>{% endif %}.</div></div>
+    </div>
+
+    <p class="sec-sub" style="margin:22px 0 6px;">Drawing power</p>
+    <table class="tb">
+      <thead><tr><th>Security</th><th>Value</th><th>Margin</th><th>Drawing power</th></tr></thead>
+      <tbody>
+        <tr><td>Paid stock (inventory &minus; creditors)</td><td class="num">{{ mpbf.paid_stock }}</td><td class="num">{{ mpbf.stock_margin_pct }}</td><td class="num">{{ mpbf.dp_stock }}</td></tr>
+        <tr><td>Book debts (receivables)</td><td class="num">{{ mpbf.debtors }}</td><td class="num">{{ mpbf.debtor_margin_pct }}</td><td class="num">{{ mpbf.dp_debtors }}</td></tr>
+        <tr class="b"><td>Total drawing power</td><td class="num"></td><td class="num"></td><td class="num">{{ mpbf.drawing_power }}</td></tr>
+      </tbody>
+    </table>
+
+    <div class="recobox">
+      <div class="rh"><div class="lab">Recommended working-capital limit</div><div class="big num">&#8377;{{ mpbf.recommended_cr }}<small>Cr</small></div></div>
+      <div class="rb">
+        <div class="item"><div class="k">MPBF (Method II)</div><div class="v">{{ mpbf.mpbf2 }}</div></div>
+        <div class="item"><div class="k">Drawing power</div><div class="v">{{ mpbf.drawing_power }}</div></div>
+        <div class="item"><div class="k">Binding constraint</div><div class="v">{{ mpbf.binding }}</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 6 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 7 — RATIOS, ASSESSMENT & DISCLAIMER -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; CMA Data</div><div class="doc">{{ period_label }} &middot; Confidential</div></div>
+    <div class="sec-no">Analysis &mdash; Key ratios</div>
+    <h2 class="sec">Ratio Analysis &amp; Assessment</h2>
+    <table class="tb">
+      <thead><tr><th>Ratio</th><th>Value</th><th>Norm</th><th style="text-align:center;">Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Current ratio</td><td class="num">{{ rb.cr.value }}</td><td class="num">{{ rb.cr.norm }}</td><td style="text-align:center;font-weight:700;color:var(--teal)">{{ rb.cr.verdict }}</td></tr>
+        <tr><td>Interest coverage (ICR)</td><td class="num">{{ rb.icr.value }}</td><td class="num">{{ rb.icr.norm }}</td><td style="text-align:center;font-weight:700;color:var(--teal)">{{ rb.icr.verdict }}</td></tr>
+        <tr><td>TOL / TNW</td><td class="num">{{ rb.tol.value }}</td><td class="num">{{ rb.tol.norm }}</td><td style="text-align:center;font-weight:700;color:var(--amber)">{{ rb.tol.verdict }}</td></tr>
+        <tr><td>Working-capital cycle (days)</td><td class="num">{{ rb.wc.value }}</td><td class="num">{{ rb.wc.norm }}</td><td style="text-align:center;font-weight:700;color:var(--amber)">{{ rb.wc.verdict }}</td></tr>
+        <tr><td>DSCR</td><td class="num">{{ rb.dscr.value }}</td><td class="num">{{ rb.dscr.norm }}</td><td style="text-align:center;font-weight:700;color:var(--sub)">{{ rb.dscr.verdict }}</td></tr>
+      </tbody>
+    </table>
+    <div class="chips">
+      <div class="chip"><div class="k">Turnover</div><div class="v num">&#8377;{{ turnover_cr }} Cr</div><div class="s">{{ period_label }}</div></div>
+      <div class="chip"><div class="k">Permissible finance</div><div class="v num">&#8377;{{ proposed_cc_cr }} Cr</div><div class="s">MPBF II</div></div>
+      <div class="chip"><div class="k">Health score</div><div class="v num">{{ score }}</div><div class="s">{{ band_word }}</div></div>
+      <div class="chip"><div class="k">Data completeness</div><div class="v num">{{ data_completeness }}%</div><div class="s">Inputs evidenced</div></div>
+    </div>
+    <div class="disclaimer">
+      <b>About this statement.</b> Prepared by MFOS from {{ client_name }}'s {{ period_label }} audited financials ({{ auditor }}), GST filings and a credit-bureau pull, in the IBA CMA format, using the Tandon methodology for permissible bank finance. Only one audited period is on record; comparative operating and fund-flow (Form VI) columns require a prior-period balance sheet not currently on file. This is an advisory bank-format statement, not a sanction or a commitment to lend — the sanctioned limit, margins, security and pricing rest with the lender. Figures are as reported in the underlying documents. &middot; Generated {{ issued_long }}.
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System &middot; Concierge CFO for India's MSMEs</span><span>Page 7 of 7 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+</body>
+</html>

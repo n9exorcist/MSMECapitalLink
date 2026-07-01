@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MFOS Green Opportunity Report — {{ client_name }}</title>
+<style>
+  :root{
+    --navy:#0B2E4F; --navy2:#103F6B; --ink:#0F172A; --sub:#475569; --muted:#8595A8;
+    --teal:#0F766E; --teal2:#14B8A6; --tealwash:#ECFDFA;
+    --green:#157F5B; --green2:#22A06B; --greenwash:#ECFBF3; --greenline:#BFEBD6;
+    --amber:#B45309; --amberwash:#FFF7ED; --red:#C0392B; --redwash:#FDF2F0;
+    --line:#E2EAF4; --line2:#D3DEEC; --paper:#FFFFFF; --wash:#F5F8FC;
+  }
+  *{box-sizing:border-box;}
+  @page{ size:A4; margin:0; }
+  html,body{margin:0;padding:0;}
+  body{ font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; color:var(--ink);
+    font-size:10.2px; line-height:1.5; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .num{ font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+  .page{ width:210mm; min-height:297mm; background:var(--paper); page-break-after:always; position:relative; overflow:hidden; }
+  .page:last-child{ page-break-after:auto; }
+  .pad{ padding:16mm 16mm 22mm; }
+  .runhead{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:1.5px solid var(--green); padding-bottom:7px; margin-bottom:18px; }
+  .runhead .eyebrow{ font-size:8.4px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--green); }
+  .runhead .doc{ font-size:8.4px; font-weight:600; letter-spacing:.05em; color:var(--muted); }
+  .foot{ position:absolute; left:16mm; right:16mm; bottom:11mm; display:flex; justify-content:space-between; align-items:center;
+    border-top:1px solid var(--line); padding-top:7px; font-size:7.6px; color:var(--muted); letter-spacing:.02em; }
+  .foot b{ color:var(--sub); font-weight:700; }
+  .sec-no{ font-size:8px; font-weight:800; letter-spacing:.18em; color:var(--green); text-transform:uppercase; }
+  h2.sec{ font-family:Georgia,serif; font-size:19px; font-weight:700; color:var(--navy); margin:2px 0 3px; letter-spacing:-.01em; }
+  .sec-sub{ font-size:9.4px; color:var(--sub); margin:0 0 16px; max-width:155mm; }
+  .lead{ font-family:Georgia,serif; font-size:12.5px; line-height:1.55; color:var(--navy); margin:0 0 14px; }
+
+  /* cover */
+  .cover{ color:#EAF7F0; background:
+      radial-gradient(680px 320px at 86% -8%, rgba(34,160,107,.28), transparent 60%),
+      radial-gradient(560px 360px at -8% 110%, rgba(94,234,212,.12), transparent 55%),
+      linear-gradient(158deg,#08321F 0%,#0C3D50 55%,#0E3A60 100%);
+    padding:20mm 18mm; display:flex; flex-direction:column; min-height:297mm; }
+  .cv-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .brandmark{ display:flex; align-items:center; gap:11px; }
+  .brandmark .logo{ width:34px;height:34px;border-radius:9px; background:linear-gradient(180deg,var(--green2),var(--green));
+    display:flex;align-items:center;justify-content:center; font-family:Georgia,serif; font-weight:700; font-size:18px; color:#04241A; }
+  .brandmark .bt{ font-family:Georgia,serif; font-size:17px; font-weight:700; color:#fff; line-height:1; }
+  .brandmark .bs{ font-size:7.8px; font-weight:700; letter-spacing:.22em; color:#8FE3C0; text-transform:uppercase; margin-top:3px; }
+  .cv-meta{ text-align:right; font-size:8.2px; color:#9FD6BE; letter-spacing:.04em; line-height:1.7; }
+  .cv-kicker{ margin-top:46mm; font-size:9px; font-weight:800; letter-spacing:.3em; text-transform:uppercase; color:#7FE3C0; }
+  .cv-title{ font-family:Georgia,serif; font-size:40px; font-weight:700; line-height:1.05; color:#fff; margin:8px 0 0; letter-spacing:-.015em; }
+  .cv-title .thin{ display:block; font-size:21px; font-weight:400; color:#BFE7D5; margin-top:6px; }
+  .cv-client{ margin-top:10mm; padding:16px 18px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); }
+  .cv-client .nm{ font-family:Georgia,serif; font-size:22px; font-weight:700; color:#fff; }
+  .cv-client .ow{ font-size:9.6px; color:#BFE7D5; margin-top:3px; }
+  .cv-client .row{ display:flex; gap:26px; margin-top:11px; flex-wrap:wrap; }
+  .cv-client .row .k{ font-size:7.6px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#84B8A0; }
+  .cv-client .row .v{ font-size:10px; color:#EAF7F0; font-weight:600; margin-top:1px; }
+  .cv-verdict{ margin-top:auto; display:flex; align-items:flex-end; gap:14px; }
+  .vbox .lab{ font-size:8.4px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#84B8A0; }
+  .vbox .word{ font-family:Georgia,serif; font-size:40px; font-weight:700; color:#fff; line-height:1; margin-top:4px; }
+  .vbox .word small{ font-size:18px; color:#7FE3C0; font-weight:400; margin-left:6px; }
+  .vbox .band{ font-size:9px; color:#BFE7D5; margin-top:9px; } .vbox .band b{ color:#fff; }
+  .vsep{ width:1px; align-self:stretch; background:rgba(255,255,255,.18); }
+
+  .hero{ display:flex; align-items:center; justify-content:space-between; gap:18px; border-radius:14px; padding:16px 20px; margin:2px 0 16px;
+    background:linear-gradient(160deg,#08321F,#0C4A33); color:#fff; }
+  .hero .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#8FE3C0; }
+  .hero .big{ font-family:Georgia,serif; font-size:32px; font-weight:700; line-height:1; margin-top:4px; } .hero .big small{ font-size:15px; color:#BFE7D5; font-weight:400; margin-left:6px; }
+  .hero .sub{ font-size:9px; color:#BFE7D5; margin-top:5px; }
+  .hero .right{ text-align:right; } .hero .right .k{ font-size:7.4px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9FD6BE; }
+  .hero .right .v{ font-size:12px; font-weight:700; margin-top:2px; }
+
+  .twocol{ display:flex; gap:18px; } .lcol{ flex:1; }
+
+  .kvtab{ width:100%; border-collapse:collapse; }
+  .kvtab td{ padding:6.5px 0; border-bottom:1px solid var(--line); font-size:9.6px; }
+  .kvtab td.k{ color:var(--sub); } .kvtab td.v{ text-align:right; font-weight:700; color:var(--navy); }
+  .kvtab tr.head td{ border-bottom:1.5px solid var(--green); font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding-top:0; }
+  .kvtab tr.sum td{ border-top:1.5px solid var(--green); border-bottom:0; font-family:Georgia,serif; font-size:11px; color:var(--green); padding-top:8px; font-weight:700; }
+
+  /* assessment cards */
+  .acards{ display:flex; gap:12px; margin-top:16px; }
+  .acard{ flex:1; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .acard .ah{ padding:10px 13px 9px; font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--navy); background:var(--wash); border-bottom:1px solid var(--line); }
+  .acard .ab{ padding:11px 13px 13px; }
+  .pill{ display:inline-block; font-size:8.6px; font-weight:800; letter-spacing:.04em; padding:3px 9px; border-radius:999px; }
+  .pill.ok{ background:var(--greenwash); color:var(--green); } .pill.warn{ background:var(--amberwash); color:var(--amber); } .pill.na{ background:#EEF2F7; color:var(--muted); }
+  .acard .ad{ font-size:8.8px; color:var(--sub); line-height:1.5; margin-top:9px; }
+
+  /* metric chips */
+  .chips{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .chip{ flex:1; min-width:90px; border:1px solid var(--line); border-radius:11px; padding:11px 13px; }
+  .chip.eco{ border-color:var(--greenline); background:var(--greenwash); }
+  .chip .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .chip .v{ font-family:Georgia,serif; font-size:18px; font-weight:700; color:var(--navy); margin-top:2px; }
+  .chip.eco .v{ color:var(--green); }
+  .chip .s{ font-size:8px; color:var(--sub); margin-top:2px; }
+
+  .recobox{ border:1.5px solid var(--green); border-radius:14px; overflow:hidden; margin:16px 0 4px; }
+  .recobox .rh{ background:linear-gradient(160deg,#08321F,#0C4A33); color:#fff; padding:15px 18px; }
+  .recobox .rh .lab{ font-size:8px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#8FE3C0; }
+  .recobox .rh .big{ font-family:Georgia,serif; font-size:16px; font-weight:700; margin-top:4px; line-height:1.35; }
+  .recobox .rb{ padding:13px 18px; display:flex; gap:22px; }
+  .recobox .rb .item .k{ font-size:7.6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .recobox .rb .item .v{ font-size:10px; font-weight:700; color:var(--navy); margin-top:2px; }
+
+  ul.ass{ margin:8px 0 0; padding:0 0 0 18px; } ul.ass li{ font-size:8.8px; color:var(--sub); line-height:1.5; margin-bottom:5px; }
+  .note{ margin-top:14px; padding:11px 14px; background:var(--greenwash); border:1px solid var(--greenline); border-radius:10px; font-size:8.6px; color:var(--sub); line-height:1.5; }
+  .note b{ color:var(--green); }
+  .disclaimer{ margin-top:14px; padding:12px 14px; background:var(--wash); border-radius:10px; font-size:8px; color:var(--muted); line-height:1.5; }
+  .disclaimer b{ color:var(--sub); }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 — COVER -->
+<section class="page cover">
+  <div class="cv-top">
+    <div class="brandmark"><div class="logo">M</div><div><div class="bt">MFOS</div><div class="bs">MSME Financial OS</div></div></div>
+    <div class="cv-meta">Sustainability &amp; green-finance assessment<br>Business as of <b style="color:#EAF7F0">{{ period_label }}</b><br>Issued {{ issued_long }} &middot; Advisor: {{ advisor }}</div>
+  </div>
+  <div class="cv-kicker">Green Opportunity &middot; Pre-feasibility</div>
+  <div class="cv-title">Green Opportunity Report
+    <span class="thin">Rooftop solar, green finance &amp; transition-risk assessment</span>
+  </div>
+  <div class="cv-client">
+    <div class="nm">{{ client_name }}</div>
+    <div class="ow">Proprietor: {{ owner }} &middot; {{ sector }} &middot; {{ location }}</div>
+    <div class="row">
+      <div><div class="k">GSTIN</div><div class="v num">{{ gstin }}</div></div>
+      <div><div class="k">Turnover</div><div class="v num">&#8377;{{ turnover_cr }} Cr</div></div>
+      <div><div class="k">Health score</div><div class="v num">{{ score }}/100</div></div>
+    </div>
+  </div>
+  <div class="cv-verdict">
+    {% if has_solar %}<div class="vbox"><div class="lab">Rooftop solar potential</div><div class="word num">{{ system_kwp }}<small>kWp</small></div><div class="band">Payback <b>{{ payback_years }}</b> &middot; ~{{ co2_tpa }} tCO&#8322;/yr</div></div>
+    <div class="vsep"></div>{% endif %}
+    <div class="vbox"><div class="lab">CBAM exposure</div><div class="word" style="font-size:30px;">{{ cbam.verdict }}</div><div class="band">Green finance: <b>{{ gfin.verdict }}</b></div></div>
+  </div>
+</section>
+
+<!-- PAGE 2 — EXECUTIVE SUMMARY -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Green Opportunity</div><div class="doc">{{ period_label }} &middot; Advisory</div></div>
+    <div class="sec-no">01 &mdash; The opportunity</div>
+    <h2 class="sec">Executive Summary</h2>
+    <p class="lead">{{ summary }}</p>
+    <div class="acards">
+      <div class="acard">
+        <div class="ah">Rooftop solar</div>
+        <div class="ab"><span class="pill ok">{% if has_solar %}{{ system_kwp }} kWp viable{% else %}Optional{% endif %}</span>
+          <div class="ad">{% if has_solar %}~{{ rooftop_offset_pct }} of consumption offset; {{ payback_years }} payback; {{ annual_savings_inr }}/yr saved.{% else %}Energy footprint is modest — solar is discretionary.{% endif %}</div></div>
+      </div>
+      <div class="acard">
+        <div class="ah">Green finance</div>
+        <div class="ab"><span class="pill {{ gfin.verdict_class }}">{{ gfin.verdict }}</span>
+          <div class="ad">{{ gfin.detail }}</div></div>
+      </div>
+      <div class="acard">
+        <div class="ah">CBAM / transition</div>
+        <div class="ab"><span class="pill {{ cbam.verdict_class }}">{{ cbam.verdict }}</span>
+          <div class="ad">{{ cbam.detail }}</div></div>
+      </div>
+    </div>
+    <div class="note"><b>Pre-feasibility.</b> The figures in this report are indicative estimates from published benchmarks (page 6), sized to the business's turnover — not a metered energy audit. A site survey (roof area, sanctioned load, shadow analysis) is needed to firm up the numbers before investment.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 2 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 3 — ENERGY PROFILE -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Green Opportunity</div><div class="doc">{{ period_label }} &middot; Advisory</div></div>
+    <div class="sec-no">02 &mdash; The baseline</div>
+    <h2 class="sec">Indicative Energy Profile</h2>
+    <p class="sec-sub">Estimated from turnover using an MSME energy-intensity benchmark ({{ energy_cost_pct }} of turnover) — a placeholder until metered bills are supplied.</p>
+    <div class="chips">
+      <div class="chip"><div class="k">Est. annual electricity</div><div class="v num">{{ energy_spend_inr }}</div><div class="s">≈ {{ energy_cost_pct }} of turnover</div></div>
+      <div class="chip"><div class="k">Est. consumption</div><div class="v num">{{ energy_units }}</div><div class="s">units/yr @ &#8377;{{ tariff }}/unit</div></div>
+      <div class="chip eco"><div class="k">Solar-addressable</div><div class="v num">{{ rooftop_offset_pct }}</div><div class="s">of consumption</div></div>
+    </div>
+    <div class="note"><b>Why this matters.</b> Electricity is a recurring, inflation-exposed cost that rooftop solar converts into a fixed, financeable asset. The larger the daytime load, the stronger the case — a metered 12-month consumption history would replace the benchmark above and sharpen every figure on the next page.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 3 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 4 — ROOFTOP SOLAR OPPORTUNITY -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Green Opportunity</div><div class="doc">{{ period_label }} &middot; Advisory</div></div>
+    <div class="sec-no">03 &mdash; The investment</div>
+    <h2 class="sec">Rooftop Solar Opportunity</h2>
+    {% if has_solar %}
+    <div class="hero">
+      <div><div class="lab">Indicative system</div><div class="big num">{{ system_kwp }}<small>kWp</small></div><div class="sub">Offsets ~{{ rooftop_offset_pct }} of estimated consumption</div></div>
+      <div class="right"><div class="k">Est. capital cost</div><div class="v num">{{ capex_inr }}</div><div class="k" style="margin-top:7px;">Simple payback</div><div class="v num">{{ payback_years }}</div></div>
+    </div>
+    <div class="twocol">
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Economics (indicative)</td><td style="text-align:right;">Value</td></tr>
+        <tr><td class="k">System size</td><td class="v num">{{ system_kwp }} kWp</td></tr>
+        <tr><td class="k">Capital cost</td><td class="v num">{{ capex_inr }}</td></tr>
+        <tr><td class="k">Annual generation</td><td class="v num">{{ annual_generation }} kWh</td></tr>
+        <tr><td class="k">Annual savings</td><td class="v num">{{ annual_savings_inr }}</td></tr>
+        <tr class="sum"><td>Simple payback</td><td class="v num">{{ payback_years }}</td></tr>
+      </table></div>
+      <div class="lcol"><table class="kvtab">
+        <tr class="head"><td>Value &amp; impact (25 yr)</td><td style="text-align:right;">Value</td></tr>
+        <tr><td class="k">Lifetime savings (nominal)</td><td class="v num">{{ lifetime_savings_inr }}</td></tr>
+        <tr><td class="k">CO&#8322; avoided / year</td><td class="v num">{{ co2_tpa }} t</td></tr>
+        <tr><td class="k">CO&#8322; avoided (lifetime)</td><td class="v num">{{ co2_lifetime }} t</td></tr>
+        <tr><td class="k">Capital cost</td><td class="v num">&#8377;{{ capex_cr }} Cr</td></tr>
+        <tr class="sum"><td>Green-finance eligible</td><td class="v num">Yes</td></tr>
+      </table></div>
+    </div>
+    <div class="chips">
+      <div class="chip eco"><div class="k">System</div><div class="v num">{{ system_kwp }} kWp</div><div class="s">Rooftop</div></div>
+      <div class="chip eco"><div class="k">Saves / yr</div><div class="v num">{{ annual_savings_inr }}</div><div class="s">At current tariff</div></div>
+      <div class="chip eco"><div class="k">Payback</div><div class="v num">{{ payback_years }}</div><div class="s">Simple</div></div>
+      <div class="chip eco"><div class="k">CO&#8322; / yr</div><div class="v num">{{ co2_tpa }} t</div><div class="s">Grid offset</div></div>
+    </div>
+    <div class="note"><b>PM Surya Ghar &amp; subsidy.</b> Commercial rooftop is financeable as a green term loan; the recommended route is a solar term loan repaid from the energy savings, so the asset is broadly self-funding after payback. Confirm applicable state/central incentives at the time of sanction.</div>
+    {% else %}
+    <div class="note"><b>Not a priority.</b> The estimated energy footprint is too small for rooftop solar to pay back attractively. Revisit if consumption grows or metered bills reveal a larger daytime load.</div>
+    {% endif %}
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 4 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 5 — GREEN FINANCE & CBAM -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Green Opportunity</div><div class="doc">{{ period_label }} &middot; Advisory</div></div>
+    <div class="sec-no">04 &mdash; Finance &amp; risk</div>
+    <h2 class="sec">Green Finance &amp; Transition Risk</h2>
+    <div class="acards">
+      <div class="acard" style="flex:1;">
+        <div class="ah">Green finance eligibility &middot; <span class="pill {{ gfin.verdict_class }}">{{ gfin.verdict }}</span></div>
+        <div class="ab"><div class="ad" style="font-size:9.4px;">{{ gfin.detail }}</div>
+          <div class="ad" style="margin-top:9px;">Health score <b style="color:var(--navy)">{{ score }}/100</b> ({{ band_word }}) anchors the pricing — the stronger the file, the finer the green-loan rate.</div></div>
+      </div>
+    </div>
+    <div class="acards" style="margin-top:14px;">
+      <div class="acard" style="flex:1;">
+        <div class="ah">CBAM &amp; transition risk &middot; <span class="pill {{ cbam.verdict_class }}">{{ cbam.verdict }}</span></div>
+        <div class="ab"><div class="ad" style="font-size:9.4px;">{{ cbam.detail }}</div></div>
+      </div>
+    </div>
+    <div class="note"><b>Routes to finance.</b> SIDBI's 4E (End-to-End Energy Efficiency) and Green schemes, public-sector-bank rooftop-solar term loans, and the PM Surya Ghar framework are the standard channels for MSME green capex — typically at concessional rates versus standard working-capital pricing. A certified, bank-ready file secures the best terms.</div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System</span><span>Page 5 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+<!-- PAGE 6 — RECOMMENDATION, ASSUMPTIONS & DISCLAIMER -->
+<section class="page">
+  <div class="pad">
+    <div class="runhead"><div class="eyebrow">{{ client_name }} &middot; Green Opportunity</div><div class="doc">{{ period_label }} &middot; Advisory</div></div>
+    <div class="sec-no">05 &mdash; The verdict</div>
+    <h2 class="sec">Recommendation</h2>
+    <div class="recobox">
+      <div class="rh"><div class="lab">Recommended next step</div><div class="big">{% if has_solar %}Commission a rooftop-solar site survey and pursue a green term loan — the {{ system_kwp }} kWp system pays back in {{ payback_years }} and is broadly self-funding thereafter.{% else %}Prioritise green-finance access over solar capex; revisit rooftop solar as consumption grows.{% endif %}</div></div>
+      <div class="rb">
+        {% if has_solar %}<div class="item"><div class="k">System</div><div class="v">{{ system_kwp }} kWp &middot; {{ capex_inr }}</div></div>
+        <div class="item"><div class="k">Payback</div><div class="v">{{ payback_years }}</div></div>{% endif %}
+        <div class="item"><div class="k">Green finance</div><div class="v">{{ gfin.verdict }}</div></div>
+      </div>
+    </div>
+    <p class="sec-sub" style="margin:16px 0 4px;">Basis &amp; assumptions</p>
+    <ul class="ass">
+      {% for a in assumptions %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+    <div class="disclaimer">
+      <b>About this report.</b> Prepared by MFOS as a green-finance and sustainability pre-feasibility for {{ client_name }} from its {{ period_label }} financials and published sector/solar benchmarks. All energy, solar-sizing, savings, payback and CO&#8322; figures are <b>indicative estimates</b> derived from the assumptions listed above and the business's turnover — not the output of a metered energy audit or an engineering site survey. They are advisory and must be validated (roof area, sanctioned load, shadow analysis, current tariffs and incentives) before any investment or loan decision. Not a sanction or commitment to lend. &middot; Generated {{ issued_long }}.
+    </div>
+  </div>
+  <div class="foot"><span><b>MFOS</b> &middot; MSME Financial Operating System &middot; Concierge CFO for India's MSMEs</span><span>Page 6 of 6 &middot; Prepared for {{ client_name }}</span></div>
+</section>
+
+</body>
+</html>
