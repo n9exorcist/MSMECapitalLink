@@ -45,14 +45,19 @@ export default function HomeDashboard() {
     const { data: salesRows = [] } = useMonthlySales(activeMsmeId);         // live → Sales Trend
     const { data: cashPos } = useCashPosition(activeMsmeId);                // live → Cash Runway
 
-    // ↓↓↓ ADD HERE (same block) ↓↓↓
+    // Refresh only THIS client's dashboard queries on focus — not the whole cache.
+    // A bare invalidateQueries() marks every screen's data stale and refetches all
+    // mounted queries on every tab return; scoping to the keys Home actually renders
+    // keeps the refresh cheap and leaves other screens' caches intact.
     const queryClient = useQueryClient();
     useFocusEffect(
         useCallback(() => {
-            queryClient.invalidateQueries();
-        }, [queryClient])
+            if (!activeMsmeId) return;
+            for (const key of ['dashboardData', 'loans', 'compliance_filings', 'monthly_sales', 'cash_position']) {
+                queryClient.invalidateQueries({ queryKey: [key, activeMsmeId] });
+            }
+        }, [queryClient, activeMsmeId])
     );
-    // ↑↑↑ ADD HERE ↑↑↑
 
     // Staggered entrance — fires once, when the dashboard data is ready.
     const e1 = useRef(new Animated.Value(0)).current; // header

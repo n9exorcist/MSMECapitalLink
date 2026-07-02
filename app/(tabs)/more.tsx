@@ -108,14 +108,17 @@ export default function MoreScreen() {
     const { data: filings = [], isLoading: filingsLoading } = useComplianceFilings(activeMsmeId);
     const { data: salesRows = [], isLoading: salesLoading } = useMonthlySales(activeMsmeId);
 
-    // ↓↓↓ ADD HERE ↓↓↓
+    // Refresh only the queries this screen renders on focus — not the whole cache.
+    // (See the same scoping note on the Home screen.)
     const queryClient = useQueryClient();
     useFocusEffect(
         useCallback(() => {
-            queryClient.invalidateQueries();
-        }, [queryClient])
+            if (!activeMsmeId) return;
+            for (const key of ['loans', 'compliance_filings', 'monthly_sales']) {
+                queryClient.invalidateQueries({ queryKey: [key, activeMsmeId] });
+            }
+        }, [queryClient, activeMsmeId])
     );
-    // ↑↑↑ ADD HERE ↑↑↑
 
     const openReport = useCallback((key: string) => {
         if (!activeMsmeId) return;

@@ -111,7 +111,7 @@ export default function ConsoleDashboard() {
         : String(av).localeCompare(String(bv));
       return dir === 'asc' ? cmp : -cmp;
     });
-  }, [clients, q, band, risk, sector, sort]);
+  }, [clients, q, band, risk, sector, freshness, sort]);
 
   const agg = useMemo(() => {
     const rows = filtered;
