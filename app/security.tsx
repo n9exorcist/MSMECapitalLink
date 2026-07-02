@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, SafeAreaView, Switch, TouchableOpac
 import { Stack, useRouter } from 'expo-router';
 import { C, T } from '@/constants/theme';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { useAuthStore } from '../stores/useAuthStore';
 
 export default function SecurityScreen() {
     const router = useRouter();
@@ -14,7 +15,10 @@ export default function SecurityScreen() {
     const confirmLogout = () =>
         Alert.alert('Log out', 'Are you sure you want to log out?', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Log out', style: 'destructive', onPress: () => router.replace('/login') },
+            {
+                text: 'Log out', style: 'destructive',
+                onPress: async () => { await useAuthStore.getState().logout(); router.replace('/login'); },
+            },
         ]);
 
     return (

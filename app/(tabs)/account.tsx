@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { C, T, S, shadow } from '@/constants/theme';
 import { useMsmeData } from '../../hooks/useMsmeData';
 import { TalkToCFO } from '../../components/TalkToCFO';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 // Settings rows — each with a tinted icon chip. Labels are owner-facing
 // (what the person controls), no system/jargon language.
@@ -149,7 +150,7 @@ export default function AccountScreen() {
                         label="Logout"
                         isLast
                         danger
-                        onPress={() => router.replace('/login')}
+                        onPress={async () => { await useAuthStore.getState().logout(); router.replace('/login'); }}
                     />
                 </Animated.View>
             </ScrollView>
