@@ -1,0 +1,47 @@
+name: Weekly score refresh
+
+# Recomputes every client's cached scores (health / bank-readiness / green) with the
+# CURRENT engine, so the triage list and owner app stay in sync without a manual
+# console "Save". Implements spec §6.4 (weekly background recompute, Sun 2 AM IST)
+# by POSTing the existing maintenance endpoint: POST /admin/recompute-scores.
+#
+# Setup — add these repository secrets (Settings → Secrets and variables → Actions):
+#   BACKEND_URL  (required)  the deployed API base, e.g. https://api.mfos.app
+#   ADMIN_TOKEN  (optional)  sent as "Authorization: Bearer <token>" once the
+#                            /admin routes are put behind auth. Safe to leave unset.
+#
+# Until BACKEND_URL is set the job no-ops (stays green), so it never spams failure
+# emails before the backend is deployed.
+
+on:
+  schedule:
+    - cron: '30 20 * * 6'   # Sat 20:30 UTC = Sun 02:00 IST
+  workflow_dispatch: {}       # allow manual runs from the Actions tab
+
+# Never let a manual run overlap the scheduled one.
+concurrency:
+  group: weekly-score-refresh
+  cancel-in-progress: false
+
+jobs:
+  recompute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BACKEND_URL: ${{ secrets.BACKEND_URL }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+    steps:
+      - name: Recompute all client scores
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "BACKEND_URL secret not set — backend not deployed yet; skipping."
+            exit 0
+          fi
+          auth=()
+          if [ -n "$ADMIN_TOKEN" ]; then auth=(-H "Authorization: Bearer $ADMIN_TOKEN"); fi
+          url="${BACKEND_URL%/}/admin/recompute-scores"
+          echo "POST $url"
+          # -f: fail (non-zero) on HTTP >= 400 so a real deploy problem surfaces.
+          curl -fsS --max-time 300 -X POST "${auth[@]}" "$url"
+          echo
+          echo "Weekly score refresh complete."

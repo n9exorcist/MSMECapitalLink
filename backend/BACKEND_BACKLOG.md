@@ -39,7 +39,7 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 - [ ] Receivables-ageing component (reads debtor ageing) (P3)
 - [x] Bank-Readiness Score — same 8 components, reweighted toward docs/compliance/CIBIL (`BANK_READINESS_WEIGHTS`); in the Client 360 header **and** a sortable triage column, cached on `msme_entities` by score_service (entity-scores DDL) (P1)
 - [x] Green Eligibility Score — INDICATIVE: financial capacity (bank-readiness) blended with a sector-based green opportunity (CBAM + energy intensity); in the Client 360 header (flagged "indicative") **and** a sortable triage column, cached on `msme_entities`. Refine once energy/export data is captured (P3)
-- [ ] Weekly background recompute job — Sun 2 AM IST (P1)
+- [x] Weekly background recompute — GitHub Actions cron (`.github/workflows/weekly-score-refresh.yml`, Sun 2 AM IST) POSTs the existing `/admin/recompute-scores`. No-ops until the `BACKEND_URL` secret is set at deploy (P1)
 - [ ] Unit tests for every scoring rule (P1)
 
 ## Data ingestion (§5)
