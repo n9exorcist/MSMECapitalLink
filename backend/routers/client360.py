@@ -208,6 +208,8 @@ def client360(msme_id: str, db=Depends(get_db)):
         "gstFiling": gst_filing,
         "advisor": ent.get("advisor") or "",
         "health": r["currentScore"],
+        "bankReadiness": r.get("bank_readiness_score"),
+        "bankReadinessBand": r.get("bank_readiness_band"),
         "band": r["band"],
         "provisional": r["provisional"],
         "completeness": r["data_completeness"],

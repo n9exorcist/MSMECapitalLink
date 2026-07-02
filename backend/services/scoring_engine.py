@@ -8,6 +8,16 @@ COMPONENT_WEIGHTS = {
     "documentation_readiness": 0.10, "repayment_behavior": 0.05,
 }
 
+# Bank-Readiness Score (§6.2): the SAME eight component scores, reweighted toward
+# what a credit committee scrutinises — documentation completeness, filing
+# compliance, and the CIBIL/repayment + banking track — and away from pure
+# liquidity/profitability ratios. Must sum to 1.0.
+BANK_READINESS_WEIGHTS = {
+    "banking_discipline": 0.22, "documentation_readiness": 0.18, "compliance_discipline": 0.15,
+    "repayment_behavior": 0.12, "gst_consistency": 0.10, "leverage_quality": 0.08,
+    "liquidity_ratios": 0.08, "profitability": 0.07,
+}
+
 # ───────────────────────────────────────────────────────────────────────────
 #  MISSING-DATA POLICY  — your call as the credit owner, tune these two:
 #
@@ -215,6 +225,7 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
     evidenced["repayment_behavior"] = repay_ev
 
     health_score = sum(components[k] * COMPONENT_WEIGHTS[k] for k in COMPONENT_WEIGHTS)
+    bank_readiness = sum(components[k] * BANK_READINESS_WEIGHTS[k] for k in BANK_READINESS_WEIGHTS)
     data_completeness = round(sum(COMPONENT_WEIGHTS[k] for k in components if evidenced[k]) * 100)
 
     flags = []
@@ -250,6 +261,8 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
 
     return {
         "currentScore": int(health_score),
+        "bank_readiness_score": int(bank_readiness),
+        "bank_readiness_band": _band(bank_readiness)[0],
         "previousScore": None,             # score_service computes the real delta
         "band": band,
         "provisional": provisional,
