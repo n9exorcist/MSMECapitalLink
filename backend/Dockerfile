@@ -49,12 +49,13 @@ RUN python -m playwright install chromium
 # Copy the rest of the application code
 COPY . .
 
-# Expose the port FastAPI runs on
+# Expose the port FastAPI runs on (documentation only — Railway assigns the real
+# port at runtime via $PORT, expanded below).
 EXPOSE 8000
 
 # Command to run the application.
-# NOTE: Railway injects $PORT at runtime and it usually isn't 8000 — CMD in "exec form"
-# (the bracket syntax below) can't expand env vars, so this hardcodes 8000. If Railway's
-# health check / routing fails after deploy, switch to the shell form so $PORT expands:
-#   CMD uvicorn main:app --host 0.0.0.0 --port $PORT
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# SHELL FORM (no brackets) — this is required so $PORT is expanded by the shell at
+# container start. The earlier bracket/exec-form CMD (["uvicorn", ..., "--port", "8000"])
+# does NOT invoke a shell, so $PORT was passed through literally as the four characters
+# "$PORT" instead of a number, crashing uvicorn with "Invalid value for '--port'".
+CMD uvicorn main:app --host 0.0.0.0 --port $PORT
