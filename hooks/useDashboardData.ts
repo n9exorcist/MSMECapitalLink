@@ -86,7 +86,15 @@ export function useDashboardData(msmeId: string) {
                     moneyOut: {
                         total: (creditors ?? []).reduce((a, c) => a + (Number(c.amount_due) || 0), 0),
                         count: creditors?.length ?? 0,
-                        weekAmount: 0, // TODO: sum creditors with due_date within 7 days once that field is set
+                        // "Due this week" = payables due on/before 7 days from now (incl.
+                        // anything already overdue) — the actionable "pay soon" number.
+                        weekAmount: (() => {
+                            const weekEnd = Date.now() + 7 * 86_400_000;
+                            return (creditors ?? []).reduce((a, c) => {
+                                const due = c.due_date ? new Date(c.due_date).getTime() : NaN;
+                                return !isNaN(due) && due <= weekEnd ? a + (Number(c.amount_due) || 0) : a;
+                            }, 0);
+                        })(),
                     },
                 },
 

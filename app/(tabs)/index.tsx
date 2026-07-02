@@ -117,6 +117,11 @@ export default function HomeDashboard() {
     // (compliance_filings) + Sales Trend (monthly_sales) + Cash Runway (cash_position).
     // All six metric cards are now sourced from real data.
     const primaryLoan = loans[0] ?? null; // largest sanctioned
+    // Loan aggregates for the Next-EMI card (§2.5): total outstanding across all
+    // facilities + whether any EMI is past due.
+    const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+    const loanOutstanding = loans.reduce((a, l) => a + (Number(l.outstanding_balance) || 0), 0);
+    const emiOverdue = loans.some((l) => l.next_due_date && new Date(l.next_due_date) < startToday);
     // Only money-in/out come from useDashboardData; the other four tiles are computed
     // below from their own live hooks (cash_position, loans, compliance_filings, monthly_sales).
     const m = mfosData?.metrics ?? {
@@ -202,7 +207,12 @@ export default function HomeDashboard() {
                         <Text style={styles.scoreCardTitle}>Your Business Health</Text>
                     </View>
                     <ScoreArc score={scoreData.currentScore ?? 0} previousScore={prevScore} band={scoreData.band} />
-                    <TouchableOpacity style={styles.scoreDetailBtn}><Text style={styles.scoreDetailText}>See full breakdown →</Text></TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.scoreDetailBtn}
+                        onPress={() => router.push({ pathname: '/score-detail', params: { id: activeMsmeId } })}
+                    >
+                        <Text style={styles.scoreDetailText}>See full breakdown →</Text>
+                    </TouchableOpacity>
                 </Animated.View>
 
                 <Animated.View style={[styles.section, rise(e3)]}>
@@ -220,10 +230,19 @@ export default function HomeDashboard() {
                     <Text style={styles.sectionTitle}>Your Numbers</Text>
                     <View style={styles.grid}>
                         <MetricCard icon="📥" label="Money to Collect" value={formatINR(m.moneyIn.total)} sub={`${m.moneyIn.count} customers`} badge={`${m.moneyIn.overdueCount} overdue`} color={C.teal} onPress={() => router.push('/(tabs)/money-in')} />
-                        <MetricCard icon="📤" label="Money to Pay" value={formatINR(m.moneyOut.total)} sub={`${m.moneyOut.count} suppliers`} color={C.amber} onPress={() => router.push('/(tabs)/money-out')} />
+                        <MetricCard icon="📤" label="Money to Pay" value={formatINR(m.moneyOut.total)} sub={m.moneyOut.weekAmount > 0 ? `${m.moneyOut.count} suppliers · ${formatINR(m.moneyOut.weekAmount)} due soon` : `${m.moneyOut.count} suppliers`} color={C.amber} onPress={() => router.push('/(tabs)/money-out')} />
                         <MetricCard icon="🏦" label="Cash Runway" value={cashValue} sub={cashSub} color={cashColor} />
                         {/* All six cards live: Money In/Out ← useDashboardData · Cash Runway ← cash_position · Next EMI ← loans · GST & Tax ← compliance_filings · Sales Trend ← monthly_sales. */}
-                        <MetricCard icon="🏛️" label="Next EMI" value={primaryLoan ? formatINR(Number(primaryLoan.emi_amount) || 0) : '—'} sub={primaryLoan ? fmtDate(primaryLoan.next_due_date) : 'No loan on file'} color={C.navy} />
+                        <MetricCard
+                            icon="🏛️"
+                            label="Next EMI"
+                            value={primaryLoan ? formatINR(Number(primaryLoan.emi_amount) || 0) : '—'}
+                            sub={primaryLoan
+                                ? `${emiOverdue ? 'Overdue · ' : fmtDate(primaryLoan.next_due_date) + ' · '}${formatINR(loanOutstanding)} outstanding`
+                                : 'No loan on file'}
+                            color={emiOverdue ? C.red : C.navy}
+                            onPress={() => router.push('/(tabs)/more')}
+                        />
                         <MetricCard icon="📊" label="GST & Tax" value={gstStatus} sub={gstSub} color={gstColor} onPress={() => router.push('/(tabs)/more')} />
                         <MetricCard icon="📈" label="Sales Trend" value={salesValue} sub={salesSub} color={salesColor} onPress={() => router.push('/(tabs)/more')} />
                     </View>
