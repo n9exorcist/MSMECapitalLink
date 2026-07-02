@@ -3,15 +3,18 @@ import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet,
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useRouter } from 'expo-router';
 import { C, T } from '@/constants/theme';
+import { supabase } from '../../lib/supabase';
+import { AUTH_MODE } from '../../lib/authMode';
 
 export default function LoginScreen() {
-    const { login } = useAuthStore();
+    const { login, syncFromSupabase } = useAuthStore();
     const router = useRouter();
 
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
     const [step, setStep] = useState('phone'); // 'phone' | 'otp'
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -19,9 +22,22 @@ export default function LoginScreen() {
         Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: false }).start();
     }, [step]);
 
-    const handleSendOtp = () => {
+    const handleSendOtp = async () => {
         if (phone.length < 10) return;
         setLoading(true);
+        setError(null);
+
+        if (AUTH_MODE === 'supabase') {
+            // Real OTP — requires an SMS provider configured in Supabase Auth.
+            const { error: err } = await supabase.auth.signInWithOtp({ phone: `+91${phone}` });
+            setLoading(false);
+            if (err) { setError(err.message); return; }
+            setStep('otp');
+            fadeAnim.setValue(0);
+            return;
+        }
+
+        // Mock: no SMS, just advance to the code screen.
         setTimeout(() => {
             setLoading(false);
             setStep('otp');
@@ -32,13 +48,21 @@ export default function LoginScreen() {
     const handleVerify = async () => {
         if (otp.length < 6) return;
         setLoading(true);
+        setError(null);
 
-        // Simulate network request
+        if (AUTH_MODE === 'supabase') {
+            const { error: err } = await supabase.auth.verifyOtp({ phone: `+91${phone}`, token: otp, type: 'sms' });
+            if (err) { setLoading(false); setError(err.message); return; }
+            await syncFromSupabase();   // reflect the new session into the store
+            setLoading(false);
+            router.replace('/(tabs)');
+            return;
+        }
+
+        // Mock: accept any 6 digits, store a placeholder token, enter the app.
         setTimeout(async () => {
             setLoading(false);
-            // 1. Pass the required token and role to the new Zustand store
             await login('mock-jwt-token-123', 'owner');
-            // 2. Explicitly tell the router to enter the app
             router.replace('/(tabs)');
         }, 1000);
     };
@@ -124,6 +148,8 @@ export default function LoginScreen() {
                     </>
                 )}
 
+                {error && <Text style={styles.errorText}>{error}</Text>}
+
                 <Text style={styles.loginFooter}>Powered by 20 years of MSME banking expertise</Text>
             </Animated.View>
         </View>
@@ -152,5 +178,6 @@ const styles = StyleSheet.create({
     loginBtnText: { color: C.white, fontSize: T.base, fontWeight: '800', letterSpacing: 0.3 },
     resendBtn: { marginTop: 16, alignItems: 'center' },
     resendText: { fontSize: T.sm, color: C.teal, fontWeight: '600' },
+    errorText: { marginTop: 16, fontSize: T.sm, color: C.red, textAlign: 'center', fontWeight: '600' },
     loginFooter: { marginTop: 28, fontSize: T.xs, color: C.textMuted, textAlign: 'center' },
 });
