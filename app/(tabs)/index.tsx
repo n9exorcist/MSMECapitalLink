@@ -1,6 +1,12 @@
 // app/(tabs)/index.tsx
 import React, { useEffect, useRef, useCallback } from 'react';
-import { ScrollView, RefreshControl, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
+import { ScrollView, RefreshControl, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated, ActivityIndicator, Platform } from 'react-native';
+
+// The entrance stagger animates only opacity + translateY, so it can run on the
+// native (UI-thread) driver — except on web, where there is no native driver and
+// useNativeDriver:true just warns. Gate on platform: native gets the smoother,
+// off-thread animation; web keeps the existing JS-driven behaviour.
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { ScoreArc } from '../../components/ScoreArc';
 import { MetricCard } from '../../components/MetricCard';
@@ -70,10 +76,10 @@ export default function HomeDashboard() {
         if (mfosData && !hasAnimated.current) {
             hasAnimated.current = true;
             Animated.stagger(110, [
-                Animated.timing(e1, { toValue: 1, duration: 420, useNativeDriver: false }),
-                Animated.timing(e2, { toValue: 1, duration: 420, useNativeDriver: false }),
-                Animated.timing(e3, { toValue: 1, duration: 420, useNativeDriver: false }),
-                Animated.timing(e4, { toValue: 1, duration: 420, useNativeDriver: false }),
+                Animated.timing(e1, { toValue: 1, duration: 420, useNativeDriver: USE_NATIVE_DRIVER }),
+                Animated.timing(e2, { toValue: 1, duration: 420, useNativeDriver: USE_NATIVE_DRIVER }),
+                Animated.timing(e3, { toValue: 1, duration: 420, useNativeDriver: USE_NATIVE_DRIVER }),
+                Animated.timing(e4, { toValue: 1, duration: 420, useNativeDriver: USE_NATIVE_DRIVER }),
             ]).start();
         }
     }, [mfosData]);
