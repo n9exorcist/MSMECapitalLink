@@ -16,10 +16,10 @@ const C = {
 
 // Demo rows for the no-backend banner state — a spread of bands/risk so the UI reads.
 const DEMO_CLIENTS: ClientRow[] = [
-  { id: 'demo-1', company: 'Sri Sai Interiors', owner: 'Gopal Vimalraj', sector: 'Interiors / fit-out', msme_class: 'Micro', turnover: 24444909, health_score: 84, band: 'EXCELLENT', provisional: false, data_completeness: 100, score_delta: 1, risk: 'none', last_update: '2026-06-30' },
-  { id: 'demo-2', company: 'Anjali Textiles', owner: 'Anjali Rao', sector: 'Textiles', msme_class: 'Small', turnover: 71200000, health_score: 67, band: 'GOOD', provisional: true, data_completeness: 70, score_delta: -2, risk: 'yellow', last_update: '2026-06-22' },
-  { id: 'demo-3', company: 'Coastal Marine Exports', owner: 'Iqbal Khan', sector: 'Exports', msme_class: 'Medium', turnover: 184500000, health_score: 52, band: 'MEDIUM', provisional: true, data_completeness: 55, score_delta: 4, risk: 'yellow', last_update: '2026-06-18' },
-  { id: 'demo-4', company: 'Vetri Auto Components', owner: 'M. Vetrivel', sector: 'Engineering', msme_class: 'Small', turnover: 38900000, health_score: 36, band: 'POOR', provisional: true, data_completeness: 40, score_delta: -5, risk: 'red', last_update: '2026-06-10' },
+  { id: 'demo-1', company: 'Sri Sai Interiors', owner: 'Gopal Vimalraj', sector: 'Interiors / fit-out', msme_class: 'Micro', turnover: 24444909, health_score: 84, bank_readiness_score: 85, green_eligibility_score: 60, band: 'EXCELLENT', provisional: false, data_completeness: 100, score_delta: 1, risk: 'none', last_update: '2026-06-30' },
+  { id: 'demo-2', company: 'Anjali Textiles', owner: 'Anjali Rao', sector: 'Textiles', msme_class: 'Small', turnover: 71200000, health_score: 67, bank_readiness_score: 64, green_eligibility_score: 55, band: 'GOOD', provisional: true, data_completeness: 70, score_delta: -2, risk: 'yellow', last_update: '2026-06-22' },
+  { id: 'demo-3', company: 'Coastal Marine Exports', owner: 'Iqbal Khan', sector: 'Exports', msme_class: 'Medium', turnover: 184500000, health_score: 52, bank_readiness_score: 50, green_eligibility_score: 78, band: 'MEDIUM', provisional: true, data_completeness: 55, score_delta: 4, risk: 'yellow', last_update: '2026-06-18' },
+  { id: 'demo-4', company: 'Vetri Auto Components', owner: 'M. Vetrivel', sector: 'Engineering', msme_class: 'Small', turnover: 38900000, health_score: 36, bank_readiness_score: 33, green_eligibility_score: 41, band: 'POOR', provisional: true, data_completeness: 40, score_delta: -5, risk: 'red', last_update: '2026-06-10' },
 ];
 
 const bandMeta = (band?: string) => {
@@ -53,18 +53,23 @@ const isStale = (s?: string) => {
 };
 const digits = (s?: string) => (s || '').replace(/\D/g, '');
 
-type SortKey = 'company' | 'sector' | 'turnover' | 'health_score' | 'data_completeness' | 'score_delta' | 'last_update';
+type SortKey = 'company' | 'sector' | 'turnover' | 'health_score' | 'bank_readiness_score' | 'green_eligibility_score' | 'data_completeness' | 'score_delta' | 'last_update';
 const sortVal = (c: ClientRow, k: SortKey): string | number => {
   switch (k) {
     case 'company': return (c.company || '').toLowerCase();
     case 'sector': return (c.sector || '').toLowerCase();
     case 'turnover': return c.turnover || 0;
     case 'health_score': return c.health_score ?? -1;
+    case 'bank_readiness_score': return c.bank_readiness_score ?? -1;
+    case 'green_eligibility_score': return c.green_eligibility_score ?? -1;
     case 'data_completeness': return c.data_completeness ?? -1;
     case 'score_delta': return c.score_delta ?? 0;
     case 'last_update': return c.last_update ? new Date(c.last_update).getTime() : 0;
   }
 };
+// Colour a 0-100 score by band (Health / Bank-Ready / Green share this scale).
+const scoreColor = (n?: number | null) =>
+  n == null ? C.muted : n >= 80 ? C.green : n >= 60 ? C.teal : n >= 40 ? C.amber : C.red;
 
 export default function ConsoleDashboard() {
   const router = useRouter();
@@ -232,7 +237,8 @@ export default function ConsoleDashboard() {
                   <Th onClick={() => toggleSort('turnover')} sort={sort} k="turnover">Turnover</Th>
                   <Th onClick={() => toggleSort('health_score')} sort={sort} k="health_score">Health</Th>
                   <th className="px-3 py-2.5 text-center font-semibold">Band</th>
-                  <th className="px-3 py-2.5 text-center font-semibold">Bank-ready</th>
+                  <Th onClick={() => toggleSort('bank_readiness_score')} sort={sort} k="bank_readiness_score">Bank-ready</Th>
+                  <Th onClick={() => toggleSort('green_eligibility_score')} sort={sort} k="green_eligibility_score">Green</Th>
                   <th className="px-3 py-2.5 text-center font-semibold">Risk</th>
                   <Th onClick={() => toggleSort('data_completeness')} sort={sort} k="data_completeness">Complete</Th>
                   <Th onClick={() => toggleSort('score_delta')} sort={sort} k="score_delta">Δ</Th>
@@ -242,9 +248,9 @@ export default function ConsoleDashboard() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={11} className="px-4 py-12 text-center" style={{ color: C.muted }}>Loading clients…</td></tr>
+                  <tr><td colSpan={12} className="px-4 py-12 text-center" style={{ color: C.muted }}>Loading clients…</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={11} className="px-4 py-12 text-center" style={{ color: C.muted }}>
+                  <tr><td colSpan={12} className="px-4 py-12 text-center" style={{ color: C.muted }}>
                     {clients.length === 0 ? 'No clients yet.' : 'No clients match these filters.'}
                   </td></tr>
                 ) : filtered.map((c) => {
@@ -261,14 +267,19 @@ export default function ConsoleDashboard() {
                       </td>
                       <td className="px-3 py-3" style={{ color: C.sub }}>{c.sector || '—'}</td>
                       <td className="px-3 py-3 text-right num" style={{ color: C.text }}>{inrCr(c.turnover)}</td>
-                      <td className="px-3 py-3 text-right num font-bold" style={{ color: bm.color }}>{c.health_score ?? '—'}</td>
+                      <td className="px-3 py-3 text-right num font-bold" style={{ color: bm.color }}>
+                        {c.health_score ?? '—'}
+                        {c.provisional && <span title="Provisional — not yet certified" style={{ color: C.amber }}> ⚠</span>}
+                      </td>
                       <td className="px-3 py-3 text-center">
                         <span className="pill" style={{ color: bm.color, background: bm.bg }}>{bm.letter}</span>
                       </td>
-                      <td className="px-3 py-3 text-center">
-                        {c.provisional === false
-                          ? <span className="pill" style={{ color: C.green, background: '#ECFDF5' }}>Certified</span>
-                          : <span className="pill" style={{ color: C.amber, background: '#FFFBEB' }}>Provisional</span>}
+                      <td className="px-3 py-3 text-right num font-bold" style={{ color: scoreColor(c.bank_readiness_score) }}>
+                        {c.bank_readiness_score ?? '—'}
+                      </td>
+                      <td className="px-3 py-3 text-right num font-bold" style={{ color: scoreColor(c.green_eligibility_score) }}
+                        title="Green eligibility — indicative (refine with energy/export data)">
+                        {c.green_eligibility_score ?? '—'}
                       </td>
                       <td className="px-3 py-3 text-center">
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: riskColor(c.risk) }}>

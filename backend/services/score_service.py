@@ -154,6 +154,17 @@ def refresh_score(db, msme_id: str) -> dict:
         "provisional": provisional, "score_flags": flags,
     }).eq("id", msme_id).execute()
 
+    # Cache bank-readiness + green like health_score so the triage list can show
+    # them as sortable columns (spec §3.1) without recomputing per row. Wrapped so
+    # a pre-DDL schema (columns not yet added) can't break the score refresh.
+    try:
+        db.table("msme_entities").update({
+            "bank_readiness_score": result.get("bank_readiness_score"),
+            "green_eligibility_score": result.get("green_eligibility_score"),
+        }).eq("id", msme_id).execute()
+    except Exception:
+        pass
+
     db.table("scores").upsert({
         "msme_id": msme_id, "score": current, "band": band,
         "components": components, "computed_at": ts,

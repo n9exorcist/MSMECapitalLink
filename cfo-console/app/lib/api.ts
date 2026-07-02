@@ -49,6 +49,7 @@ export interface ClientRow {
     id: string; company: string; owner?: string; sector?: string;
     msme_class?: string; location?: string;
     turnover?: number; health_score?: number; band?: string;
+    bank_readiness_score?: number; green_eligibility_score?: number;
     provisional?: boolean; data_completeness?: number; score_delta?: number;
     last_update?: string; risk?: string;
     phone?: string; email?: string;

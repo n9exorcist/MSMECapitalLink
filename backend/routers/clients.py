@@ -30,6 +30,8 @@ def list_clients(db=Depends(get_db)):
         "location": r.get("location"),
         "turnover": r.get("annual_turnover") or 0,
         "health_score": r.get("health_score"),
+        "bank_readiness_score": r.get("bank_readiness_score"),
+        "green_eligibility_score": r.get("green_eligibility_score"),
         "band": r.get("band"),
         "provisional": r.get("provisional"),
         "data_completeness": r.get("data_completeness"),

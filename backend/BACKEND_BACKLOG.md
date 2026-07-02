@@ -37,8 +37,8 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 - [x] GST component to spec — `gst_consistency` now scores the real GSTR-1↔3B taxable match (avg relative gap × 200, same slope), falling back to the bank-credits-vs-turnover proxy only when no period has both returns (P1)
 - [ ] Turnover-trend component (reads `monthly_sales`) (P3)
 - [ ] Receivables-ageing component (reads debtor ageing) (P3)
-- [x] Bank-Readiness Score — same 8 components, reweighted toward docs/compliance/CIBIL (`BANK_READINESS_WEIGHTS`); computed on-read, surfaced in the Client 360 header (not persisted — no DDL) (P1)
-- [x] Green Eligibility Score — INDICATIVE: financial capacity (bank-readiness) blended with a sector-based green opportunity (CBAM + energy intensity); computed on-read, surfaced (flagged "indicative") in the Client 360 header. Refine once energy/export data is captured (P3)
+- [x] Bank-Readiness Score — same 8 components, reweighted toward docs/compliance/CIBIL (`BANK_READINESS_WEIGHTS`); in the Client 360 header **and** a sortable triage column, cached on `msme_entities` by score_service (entity-scores DDL) (P1)
+- [x] Green Eligibility Score — INDICATIVE: financial capacity (bank-readiness) blended with a sector-based green opportunity (CBAM + energy intensity); in the Client 360 header (flagged "indicative") **and** a sortable triage column, cached on `msme_entities`. Refine once energy/export data is captured (P3)
 - [ ] Weekly background recompute job — Sun 2 AM IST (P1)
 - [ ] Unit tests for every scoring rule (P1)
 
