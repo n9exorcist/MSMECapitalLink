@@ -47,14 +47,13 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", 
-        "https://msmecapitallink-production.up.railway.app" # Your Railway frontend domain
+        "http://localhost:3000",
+        "https://msme-capital-link.vercel.app",
+        "https://msme-capital-link-git-main-n9exorcists-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    # let the browser read the download filename from the report response
-    expose_headers=["Content-Disposition"],
 )
 
 @app.get("/")
