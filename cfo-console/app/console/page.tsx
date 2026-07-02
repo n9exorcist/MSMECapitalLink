@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { listClients, downloadDocument, type ClientRow } from '../lib/api';
 
 const C = {
@@ -172,6 +173,13 @@ export default function ConsoleDashboard() {
               {loading ? 'Loading…' : `${clients.length} client${clients.length === 1 ? '' : 's'} · credit-readiness triage`}
             </div>
           </div>
+          <Link
+            href="/console/analytics"
+            className="rounded-lg px-3.5 py-2 text-sm font-semibold text-white"
+            style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}
+          >
+            📊 Analytics
+          </Link>
         </div>
       </header>
 

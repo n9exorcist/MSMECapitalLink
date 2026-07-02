@@ -57,6 +57,21 @@ export interface ClientRow {
 
 export const listClients = (): Promise<{ clients: ClientRow[] }> => get('/msme/clients');
 
+// ── Portfolio analytics (§10) ──
+export interface PortfolioAnalytics {
+    total: number;
+    bands: { A: number; B: number; C: number; D: number; unknown: number };
+    averages: { health: number | null; bank_readiness: number | null; green: number | null };
+    certified: number;
+    provisional: number;
+    risk: { none: number; yellow: number; red: number };
+    sectors: { name: string; count: number }[];
+    turnover_total: number;
+}
+
+export const getPortfolioAnalytics = (): Promise<PortfolioAnalytics> =>
+    get('/msme/portfolio/analytics');
+
 // ── Client 360 ──
 export const getClient360 = (id: string): Promise<Client360Data> =>
     get(`/msme/${id}/client360`);

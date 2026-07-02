@@ -85,7 +85,7 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 
 ## Portfolio analytics (§10)
 
-- [ ] Server-side aggregates — band/tier distribution, MRR/ARR, advisor productivity (P3)
+- [~] Server-side aggregates — `GET /msme/portfolio/analytics` (band/risk/sector distribution, avg health/bank/green, certified-vs-provisional, turnover) + console `/console/analytics` page. MRR/ARR + advisor productivity shown as labelled samples until billing/advisor data lands (P3)
 - [ ] Real-time push to the owner app — the "updates in real-time" promise (§1.2) (P3)
 
 ## Security & compliance (§2, §12) — **deploy blocker, cross-cutting**
