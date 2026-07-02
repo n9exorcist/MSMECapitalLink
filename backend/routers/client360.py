@@ -210,6 +210,8 @@ def client360(msme_id: str, db=Depends(get_db)):
         "health": r["currentScore"],
         "bankReadiness": r.get("bank_readiness_score"),
         "bankReadinessBand": r.get("bank_readiness_band"),
+        "green": r.get("green_eligibility_score"),
+        "greenBand": r.get("green_eligibility_band"),
         "band": r["band"],
         "provisional": r["provisional"],
         "completeness": r["data_completeness"],

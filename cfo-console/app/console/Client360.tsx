@@ -29,6 +29,7 @@ export interface Client360Data {
   location: string; auditedPeriod: string; auditor: string; gstFiling: string; advisor: string;
   health: number | null; band: string; provisional: boolean; completeness: number;
   bankReadiness?: number | null; bankReadinessBand?: string;
+  green?: number | null; greenBand?: string;
   flags: string[]; reco: string;
   wc: { dso: number; inv: number; cred: number; total: number; note: string };
   trend: { label: string; value: string; pct: number; peak?: boolean }[];
@@ -41,7 +42,7 @@ const SRI_SAI: Client360Data = {
   name: 'Sri Sai Interiors', owner: 'Gopal Vimalraj', gstin: '33ALTPV2431J1ZP', pan: 'ALTPV2431J',
   sector: 'Interiors / fit-out', msmeClass: 'Micro', location: 'Chennai, TN',
   auditedPeriod: 'FY 2024-25', auditor: 'A Rudra & Co', gstFiling: '12/12 · R1≈3B', advisor: 'Rajmohan',
-  health: 68, band: 'MEDIUM', provisional: true, completeness: 70, bankReadiness: 62, bankReadinessBand: 'GOOD',
+  health: 68, band: 'MEDIUM', provisional: true, completeness: 70, bankReadiness: 62, bankReadinessBand: 'GOOD', green: 48, greenBand: 'MEDIUM',
   flags: ['No bank statements on file', 'No CIBIL / commercial bureau pull', 'No loan / EMI repayment track'],
   reco: 'Provisional — supply bank statements + CIBIL to certify bank-readiness.',
   wc: { dso: 371, inv: 236, cred: 67, total: 540, note: 'Receivables ₹2.49 Cr exceed a full year of sales — the dominant stress.' },
@@ -143,10 +144,12 @@ export default function Client360({
             <div className="val num">{d.bankReadiness ?? '—'}{d.bankReadiness != null && <small>/100</small>}</div>
             <div className="tag">{d.bankReadiness != null ? (d.bankReadinessBand ?? '') : (d.provisional ? 'Needs CIBIL' : 'Bank-ready')}</div>
           </div>
-          <div className="schip na">
+          <div className={`schip ${d.green != null ? 'prov' : 'na'}`}>
             <div className="lab">Green</div>
-            <div className="val num">—</div>
-            <div className="tag" style={{ color: '#9fd9ff' }}>Not assessed</div>
+            <div className="val num">{d.green ?? '—'}{d.green != null && <small>/100</small>}</div>
+            <div className="tag" style={d.green == null ? { color: '#9fd9ff' } : undefined}>
+              {d.green != null ? `${d.greenBand ?? ''} · indicative` : 'Not assessed'}
+            </div>
           </div>
         </div>
         <div className="toolbar">

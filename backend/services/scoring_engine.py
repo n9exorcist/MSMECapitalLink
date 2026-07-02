@@ -18,6 +18,18 @@ BANK_READINESS_WEIGHTS = {
     "liquidity_ratios": 0.08, "profitability": 0.07,
 }
 
+# Green Eligibility Score (§6.3) — INDICATIVE. No per-client energy/export data is
+# captured, so this blends financial capacity to service green finance (the
+# bank-readiness signal) with a sector-based green-opportunity proxy (CBAM export
+# exposure + energy intensity). Tune these sector buckets as real data lands.
+_CBAM_KEYWORDS = ("steel", "iron", "aluminium", "aluminum", "cement", "fertil",
+                  "hydrogen", "foundry", "forging", "casting", "metal")
+_HIGH_ENERGY = ("manufactur", "engineering", "foundry", "textile", "spinning",
+                "food process", "chemical", "plastic", "forging", "casting",
+                "steel", "cement", "ceramic", "paper", "dyeing", "fabricat", "mill")
+_MED_ENERGY = ("retail", "warehouse", "logistic", "cold storage", "printing",
+               "packaging", "auto", "workshop", "processing")
+
 # ───────────────────────────────────────────────────────────────────────────
 #  MISSING-DATA POLICY  — your call as the credit owner, tune these two:
 #
@@ -153,6 +165,18 @@ def score_gst_match(avg_rel_gap: float) -> float:
         return 100.0
     return max(0.0, 100.0 - avg_rel_gap * 200.0)
 
+def score_green_eligibility(sector: Optional[str], bank_readiness: float) -> Tuple[float, str]:
+    """Indicative green-finance eligibility (§6.3): financial capacity to service a
+    green loan (bank-readiness) blended with a sector-based green opportunity
+    (CBAM export exposure + energy intensity). Returns (score, band)."""
+    s = (sector or "").lower()
+    cbam = 100.0 if any(k in s for k in _CBAM_KEYWORDS) else 50.0
+    energy = 90.0 if any(k in s for k in _HIGH_ENERGY) else (
+        55.0 if any(k in s for k in _MED_ENERGY) else 25.0)
+    opportunity = 0.5 * cbam + 0.5 * energy
+    score = 0.45 * bank_readiness + 0.55 * opportunity
+    return score, _band(score)[0]
+
 def score_leverage(tol_tnw: float) -> float:
     return 100 if tol_tnw <= 2.0 else (80 if tol_tnw <= 3.0 else (50 if tol_tnw <= 5.0 else 0))
 
@@ -226,6 +250,7 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
 
     health_score = sum(components[k] * COMPONENT_WEIGHTS[k] for k in COMPONENT_WEIGHTS)
     bank_readiness = sum(components[k] * BANK_READINESS_WEIGHTS[k] for k in BANK_READINESS_WEIGHTS)
+    green_score, green_band = score_green_eligibility(sector, bank_readiness)
     data_completeness = round(sum(COMPONENT_WEIGHTS[k] for k in components if evidenced[k]) * 100)
 
     flags = []
@@ -263,6 +288,8 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
         "currentScore": int(health_score),
         "bank_readiness_score": int(bank_readiness),
         "bank_readiness_band": _band(bank_readiness)[0],
+        "green_eligibility_score": int(green_score),
+        "green_eligibility_band": green_band,
         "previousScore": None,             # score_service computes the real delta
         "band": band,
         "provisional": provisional,
