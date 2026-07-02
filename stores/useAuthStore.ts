@@ -40,8 +40,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
 
     logout: async () => {
-        if (AUTH_MODE === 'supabase') {
-            await supabase.auth.signOut();
+        if (AUTH_MODE !== 'mock') {
+            await supabase.auth.signOut();   // supabase + email modes
         } else {
             await storage.removeToken();
         }
@@ -52,7 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // the check is done and can stop holding.
     checkAuth: async () => {
         try {
-            if (AUTH_MODE === 'supabase') {
+            if (AUTH_MODE !== 'mock') {   // supabase + email modes use the supabase session
                 const { data } = await supabase.auth.getSession();
                 set({ isLoggedIn: !!data.session, userRole: data.session ? roleFrom(data.session) : null });
                 // Keep the store in sync with token refresh / external sign-out.

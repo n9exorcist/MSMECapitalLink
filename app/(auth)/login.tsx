@@ -10,11 +10,17 @@ export default function LoginScreen() {
     const { login, syncFromSupabase } = useAuthStore();
     const router = useRouter();
 
+    const isEmail = AUTH_MODE === 'email';
+
     const [phone, setPhone] = useState('');
+    const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
-    const [step, setStep] = useState('phone'); // 'phone' | 'otp'
+    const [step, setStep] = useState('phone'); // 'phone' (identifier) | 'otp'
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const emailValid = /^\S+@\S+\.\S+$/.test(email);
+    const idReady = isEmail ? emailValid : phone.length >= 10;
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -23,13 +29,16 @@ export default function LoginScreen() {
     }, [step]);
 
     const handleSendOtp = async () => {
-        if (phone.length < 10) return;
+        if (!idReady) return;
         setLoading(true);
         setError(null);
 
-        if (AUTH_MODE === 'supabase') {
-            // Real OTP — requires an SMS provider configured in Supabase Auth.
-            const { error: err } = await supabase.auth.signInWithOtp({ phone: `+91${phone}` });
+        if (AUTH_MODE !== 'mock') {
+            // Real OTP. email mode uses Supabase's built-in email (no SMS provider);
+            // supabase mode uses phone (needs an SMS provider configured).
+            const { error: err } = isEmail
+                ? await supabase.auth.signInWithOtp({ email })
+                : await supabase.auth.signInWithOtp({ phone: `+91${phone}` });
             setLoading(false);
             if (err) { setError(err.message); return; }
             setStep('otp');
@@ -37,7 +46,7 @@ export default function LoginScreen() {
             return;
         }
 
-        // Mock: no SMS, just advance to the code screen.
+        // Mock: no send, just advance to the code screen.
         setTimeout(() => {
             setLoading(false);
             setStep('otp');
@@ -50,8 +59,10 @@ export default function LoginScreen() {
         setLoading(true);
         setError(null);
 
-        if (AUTH_MODE === 'supabase') {
-            const { error: err } = await supabase.auth.verifyOtp({ phone: `+91${phone}`, token: otp, type: 'sms' });
+        if (AUTH_MODE !== 'mock') {
+            const { error: err } = isEmail
+                ? await supabase.auth.verifyOtp({ email, token: otp, type: 'email' })
+                : await supabase.auth.verifyOtp({ phone: `+91${phone}`, token: otp, type: 'sms' });
             if (err) { setLoading(false); setError(err.message); return; }
             await syncFromSupabase();   // reflect the new session into the store
             setLoading(false);
@@ -87,38 +98,53 @@ export default function LoginScreen() {
                 {step === 'phone' ? (
                     <>
                         <Text style={styles.loginTitle}>Welcome back</Text>
-                        <Text style={styles.loginSubtitle}>Enter your mobile number to continue</Text>
+                        <Text style={styles.loginSubtitle}>
+                            {isEmail ? 'Enter your email to continue' : 'Enter your mobile number to continue'}
+                        </Text>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Mobile Number</Text>
-                            <View style={styles.inputRow}>
-                                <View style={styles.inputPrefix}>
-                                    <Text style={styles.inputPrefixText}>🇮🇳 +91</Text>
-                                </View>
+                            <Text style={styles.inputLabel}>{isEmail ? 'Email' : 'Mobile Number'}</Text>
+                            {isEmail ? (
                                 <TextInput
                                     style={styles.textInput}
-                                    placeholder="98765 43210"
+                                    placeholder="you@company.com"
                                     placeholderTextColor={C.textMuted}
-                                    keyboardType="phone-pad"
-                                    maxLength={10}
-                                    value={phone}
-                                    onChangeText={setPhone}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    value={email}
+                                    onChangeText={setEmail}
                                 />
-                            </View>
+                            ) : (
+                                <View style={styles.inputRow}>
+                                    <View style={styles.inputPrefix}>
+                                        <Text style={styles.inputPrefixText}>🇮🇳 +91</Text>
+                                    </View>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        placeholder="98765 43210"
+                                        placeholderTextColor={C.textMuted}
+                                        keyboardType="phone-pad"
+                                        maxLength={10}
+                                        value={phone}
+                                        onChangeText={setPhone}
+                                    />
+                                </View>
+                            )}
                         </View>
 
                         <TouchableOpacity
-                            style={[styles.loginBtn, (!phone || phone.length < 10) && styles.loginBtnDisabled]}
+                            style={[styles.loginBtn, !idReady && styles.loginBtnDisabled]}
                             onPress={handleSendOtp}
-                            disabled={loading || phone.length < 10}
+                            disabled={loading || !idReady}
                         >
                             {loading ? <ActivityIndicator color={C.white} /> : <Text style={styles.loginBtnText}>Send OTP →</Text>}
                         </TouchableOpacity>
                     </>
                 ) : (
                     <>
-                        <Text style={styles.loginTitle}>Verify your number</Text>
-                        <Text style={styles.loginSubtitle}>OTP sent to +91 {phone}</Text>
+                        <Text style={styles.loginTitle}>{isEmail ? 'Verify your email' : 'Verify your number'}</Text>
+                        <Text style={styles.loginSubtitle}>{isEmail ? `Code sent to ${email}` : `OTP sent to +91 ${phone}`}</Text>
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.inputLabel}>Enter OTP</Text>
@@ -143,7 +169,7 @@ export default function LoginScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.resendBtn} onPress={() => setStep('phone')}>
-                            <Text style={styles.resendText}>← Change number</Text>
+                            <Text style={styles.resendText}>{isEmail ? '← Change email' : '← Change number'}</Text>
                         </TouchableOpacity>
                     </>
                 )}
