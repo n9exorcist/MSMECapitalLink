@@ -217,6 +217,9 @@ export const saveDebtor = (msmeId: string, body: Row) =>
 export const saveCreditor = (msmeId: string, body: Row) =>
     post(`/msme/${msmeId}/creditors`, body);
 
+export const saveLoan = (msmeId: string, body: Row) =>
+    post(`/msme/${msmeId}/loans`, body);
+
 
 // ── Document upload (multipart → backend stores + parses) ──
 // No Content-Type header: the browser sets the multipart boundary itself.

@@ -10,7 +10,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 // Relative import works with no tsconfig change. If you set up the "@/*" alias
 // to point at ./app/*, you can use: import { ... } from '@/lib/api';
-import { getEntry, saveFinancials, saveDebtor, saveCreditor, saveProposal, getActivity, getGstRecon, saveGstReturn } from '../../lib/api';
+import { getEntry, saveFinancials, saveDebtor, saveCreditor, saveProposal, saveLoan, getActivity, getGstRecon, saveGstReturn } from '../../lib/api';
 import type { ActivityEvent, GstReconRow } from '../../lib/api';
 import Client360Live from '../Client360Live';
 import DocumentUpload from '../DocumentUpload';
@@ -161,6 +161,10 @@ export default function ConsolePage() {
   const [newGst, setNewGst] = useState({ return_type: 'GSTR1', month: '', taxable_value: '', total_tax: '' });
   const [newDebtor, setNewDebtor] = useState({ name: '', amount_outstanding: '', days_outstanding: '' });
   const [newCreditor, setNewCreditor] = useState({ name: '', amount_due: '', due_date: '' });
+  const [newLoan, setNewLoan] = useState({
+    loan_type: 'Term Loan', lender: '', sanctioned_amount: '', outstanding_balance: '',
+    emi_amount: '', interest_rate: '', next_due_date: '',
+  });
   const [proposal, setProposal] = useState({
     facility_type: 'CC / OD', amount_requested: '', purpose: 'Working capital',
     tenor_months: '', rate_expectation: '', security_offered: '', security_value: '',
@@ -330,6 +334,30 @@ export default function ConsolePage() {
       setNewCreditor({ name: '', amount_due: '', due_date: '' });
       await load(msmeId);
       setMsg({ kind: 'ok', text: 'Supplier added.' });
+    } catch (e) {
+      setMsg({ kind: 'err', text: `Save failed: ${(e as Error).message}` });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onAddLoan() {
+    if (!newLoan.lender.trim()) { setMsg({ kind: 'err', text: 'Enter the lender name.' }); return; }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await saveLoan(msmeId, {
+        loan_type: newLoan.loan_type || null,
+        lender: newLoan.lender.trim(),
+        sanctioned_amount: toNum(newLoan.sanctioned_amount),
+        outstanding_balance: toNum(newLoan.outstanding_balance),
+        emi_amount: toNum(newLoan.emi_amount),
+        interest_rate: newLoan.interest_rate ? Number(newLoan.interest_rate) : null,
+        next_due_date: newLoan.next_due_date || null,
+      });
+      setNewLoan({ loan_type: 'Term Loan', lender: '', sanctioned_amount: '', outstanding_balance: '', emi_amount: '', interest_rate: '', next_due_date: '' });
+      await load(msmeId);
+      setMsg({ kind: 'ok', text: 'Loan added.' });
     } catch (e) {
       setMsg({ kind: 'err', text: `Save failed: ${(e as Error).message}` });
     } finally {
@@ -655,9 +683,47 @@ export default function ConsolePage() {
                 </section>
               )}
 
-              {/* LOANS — read-only view of existing facilities (§4 Loans tab) */}
+              {/* LOANS — enter facilities + read-only list (§5.4 / §4 Loans tab) */}
               {tab === 'loans' && (
                 <section className="space-y-5 rise">
+                  <AddCard title="Add a loan facility">
+                    <Field label="Facility type">
+                      <select className={`${inputCls} sm:max-w-[170px]`} style={inputStyle} value={newLoan.loan_type}
+                        onChange={(e) => setNewLoan({ ...newLoan, loan_type: e.target.value })}>
+                        <option>Term Loan</option><option>CC</option><option>OD</option>
+                        <option>CC + Term Loan</option><option>Machinery Loan</option><option>Other</option>
+                      </select>
+                    </Field>
+                    <Field label="Lender">
+                      <input className={`${inputCls} sm:max-w-[180px]`} style={inputStyle} placeholder="Bank / NBFC"
+                        value={newLoan.lender} onChange={(e) => setNewLoan({ ...newLoan, lender: e.target.value })} />
+                    </Field>
+                    <Field label="Sanctioned (₹)">
+                      <input className={`${inputCls} sm:max-w-[150px]`} style={inputStyle} inputMode="numeric"
+                        value={newLoan.sanctioned_amount} onChange={(e) => setNewLoan({ ...newLoan, sanctioned_amount: e.target.value })} />
+                    </Field>
+                    <Field label="Outstanding (₹)">
+                      <input className={`${inputCls} sm:max-w-[150px]`} style={inputStyle} inputMode="numeric"
+                        value={newLoan.outstanding_balance} onChange={(e) => setNewLoan({ ...newLoan, outstanding_balance: e.target.value })} />
+                    </Field>
+                    <Field label="EMI (₹)">
+                      <input className={`${inputCls} sm:max-w-[130px]`} style={inputStyle} inputMode="numeric"
+                        value={newLoan.emi_amount} onChange={(e) => setNewLoan({ ...newLoan, emi_amount: e.target.value })} />
+                    </Field>
+                    <Field label="Rate (%)">
+                      <input className={`${inputCls} sm:max-w-[100px]`} style={inputStyle} inputMode="decimal"
+                        value={newLoan.interest_rate} onChange={(e) => setNewLoan({ ...newLoan, interest_rate: e.target.value })} />
+                    </Field>
+                    <Field label="Next EMI due">
+                      <input className={`${inputCls} sm:max-w-[170px]`} style={inputStyle} type="date"
+                        value={newLoan.next_due_date} onChange={(e) => setNewLoan({ ...newLoan, next_due_date: e.target.value })} />
+                    </Field>
+                    <button onClick={onAddLoan} disabled={busy} style={navyBtnStyle}
+                      className="w-full sm:w-auto rounded-lg px-5 py-2.5 text-sm font-semibold transition-transform active:translate-y-px disabled:opacity-60">
+                      Add loan
+                    </button>
+                  </AddCard>
+
                   <ListCard<Loan>
                     rows={loans}
                     cols={[

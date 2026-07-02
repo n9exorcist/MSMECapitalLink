@@ -46,7 +46,7 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 
 - [ ] Bank statement entry — manual / bulk-paste / OCR + `bank_statements` table (P1)
 - [x] GST return entry (`POST /msme/{id}/gst-return`) + GSTR-1 ↔ 3B reconciliation (`GET /msme/{id}/gst-recon`) over `gst_returns` (P1)
-- [ ] Loan entry — sanction / EMI schedule / repayment log (table exists, no endpoints) (P1)
+- [~] Loan entry — `POST /msme/{id}/loans` + console Loans-tab form (sanction/outstanding/EMI/rate/next-due). EMI schedule + repayment log still pending (P1)
 - [ ] Debtor/creditor bulk import + party master + ageing-over-time (P1/P3)
 - [ ] Document upload + storage + OCR + versioning (P2)
 

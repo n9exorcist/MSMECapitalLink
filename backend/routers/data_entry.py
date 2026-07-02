@@ -72,6 +72,16 @@ class CreditorIn(BaseModel):
     due_date: Optional[str] = None
 
 
+class LoanIn(BaseModel):
+    loan_type: Optional[str] = None            # 'Term Loan' | 'CC' | 'OD' | 'CC + Term Loan' | ...
+    lender: Optional[str] = None               # bank / NBFC name
+    sanctioned_amount: float = 0
+    outstanding_balance: float = 0
+    emi_amount: float = 0
+    interest_rate: Optional[float] = None       # annual %, e.g. 10.5
+    next_due_date: Optional[str] = None         # 'YYYY-MM-DD'
+
+
 class ProposalIn(BaseModel):
     facility_type: Optional[str] = None        # 'CC' | 'OD' | 'Term Loan' | 'CC + Term Loan'
     amount_requested: float = 0
@@ -356,6 +366,16 @@ def add_creditor(msme_id: str, body: CreditorIn, db=Depends(get_db)):
     row = body.model_dump()
     row["msme_id"] = msme_id
     db.table("creditors").insert(row).execute()
+    return {"ok": True}
+
+
+@router.post("/{msme_id}/loans")
+def add_loan(msme_id: str, body: LoanIn, db=Depends(get_db)):
+    """Add a loan facility. Feeds the console Loans tab and the owner app's
+    Next-EMI / Loans views (which were empty until there was an entry path)."""
+    row = body.model_dump()
+    row["msme_id"] = msme_id
+    db.table("loans").insert(row).execute()
     return {"ok": True}
 
 
