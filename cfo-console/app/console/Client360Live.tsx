@@ -2,11 +2,11 @@
 // app/console/Client360Live.tsx
 // Fetches the live /msme/{id}/client360 payload and feeds it to <Client360>.
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 import Client360, { type Client360Data } from './Client360';
 import { getClient360 } from '../lib/api';
 
-export default function Client360Live(
+function Client360Live(
   { msmeId, belowHeader, headerOnly, refreshKey = 0, onBureauSaved }:
     { msmeId: string; belowHeader?: ReactNode; headerOnly?: boolean; refreshKey?: number; onBureauSaved?: () => void },
 ) {
@@ -38,3 +38,9 @@ export default function Client360Live(
     />
   );
 }
+
+// Memoized: with a stable `belowHeader` (useMemo) and `onBureauSaved` (useCallback)
+// from the parent, typing in the data-entry forms no longer re-renders this or the
+// 508-line <Client360> — only a real prop change (msmeId / refreshKey / tab strip)
+// does.
+export default memo(Client360Live);

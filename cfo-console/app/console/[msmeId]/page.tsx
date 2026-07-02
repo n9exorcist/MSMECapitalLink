@@ -5,7 +5,7 @@
 // Overview renders <Client360Live> full-bleed (it has its own header/rail and must
 // sit OUTSIDE max-w-5xl, or it collapses into its own mobile layout on desktop).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 // Relative import works with no tsconfig change. If you set up the "@/*" alias
@@ -362,7 +362,15 @@ export default function ConsolePage() {
     }
   }
 
-  const tabsStrip = (
+  // Stable refresh callback for <Client360Live> — an inline arrow would change
+  // every render and defeat the memo below.
+  const onBureauSaved = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // Memoized so its element reference stays stable across form keystrokes: it only
+  // changes when the active tab or a tab's count changes. Passed as `belowHeader`
+  // to the memoized <Client360Live>, this keeps typing in Financials from
+  // re-rendering the 508-line Client360 header.
+  const tabsStrip = useMemo(() => (
     <div className="glass mx-4 sm:mx-6 mt-4 rounded-xl px-2 overflow-x-auto">
       <div className="flex min-w-max">
         <TabBtn id="overview" label="Overview" active={tab} onSelect={setTab} />
@@ -379,7 +387,7 @@ export default function ConsolePage() {
         <TabBtn id="activity" label="Activity" active={tab} onSelect={setTab} />
       </div>
     </div>
-  );
+  ), [tab, finHist.length, debtors.length, creditors.length, banking.length, loans.length, compliance.length]);
 
   return (
     <div style={{ color: C.text }} className="min-h-screen">
@@ -389,7 +397,7 @@ export default function ConsolePage() {
           msmeId={msmeId}
           belowHeader={tabsStrip}
           refreshKey={refreshKey}
-          onBureauSaved={() => setRefreshKey((k) => k + 1)}
+          onBureauSaved={onBureauSaved}
         />
       )}
 
@@ -401,7 +409,7 @@ export default function ConsolePage() {
             headerOnly
             belowHeader={tabsStrip}
             refreshKey={refreshKey}
-            onBureauSaved={() => setRefreshKey((k) => k + 1)}
+            onBureauSaved={onBureauSaved}
           />
           <div className="mx-auto max-w-5xl">
             {/* Client id helper (until the multi-client picker exists) */}
