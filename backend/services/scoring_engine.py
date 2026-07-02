@@ -129,7 +129,19 @@ def score_liquidity(current_ratio: float, wc_cycle_days: float, sector: Optional
     return (cr_score * 0.6) + (cycle_score * 0.4)
 
 def score_gst_consistency(turnover_variance: float) -> float:
+    # Legacy proxy: how far declared bank credits diverge from reported turnover.
+    # Used only as a FALLBACK now, when GSTR-1↔3B evidence isn't on record.
     return max(0, 100 - (turnover_variance * 200))
+
+def score_gst_match(avg_rel_gap: float) -> float:
+    """Spec §6.1 GST consistency: how closely GSTR-1 outward supplies match the
+    GSTR-3B table 3.1(a) taxable value, averaged across periods that have both.
+    Same slope as the legacy proxy (gap × 200) so bands stay calibrated:
+    0% → 100, 10% → 80, 25% → 50, ≥50% → 0. A ≤2% gap is treated as a clean
+    match (rounding / paise differences)."""
+    if avg_rel_gap <= 0.02:
+        return 100.0
+    return max(0.0, 100.0 - avg_rel_gap * 200.0)
 
 def score_leverage(tol_tnw: float) -> float:
     return 100 if tol_tnw <= 2.0 else (80 if tol_tnw <= 3.0 else (50 if tol_tnw <= 5.0 else 0))
@@ -154,7 +166,8 @@ def _band(score: float) -> Tuple[str, str]:
 def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optional[float] = None,
                               docs_ready: float = 80.0, compliance: float = 90.0,
                               sector: Optional[str] = None,
-                              cash_position: Optional[dict] = None) -> dict:
+                              cash_position: Optional[dict] = None,
+                              gst_match: Optional[dict] = None) -> dict:
     cl = metrics.current_liabilities or metrics.total_outside_liabilities
     cr = metrics.current_assets / cl if cl > 0 else 0.0
     dso = (metrics.sundry_debtors / metrics.projected_annual_turnover) * 365 if metrics.projected_annual_turnover > 0 else 0.0
@@ -177,10 +190,18 @@ def calculate_composite_score(metrics: MSMEFinancialInflowData, bounces: Optiona
     has_statement = statement_score is not None
     repay_score, repay_ev = score_behavior(dpd)
 
+    # GST consistency: prefer the real GSTR-1↔3B match when there's ≥1 period with
+    # both returns on record; otherwise fall back to the bank-credits-vs-turnover
+    # proxy so clients without GSTR-1 data keep their existing score unchanged.
+    if gst_match and gst_match.get("matched", 0) >= 1:
+        gst_score = score_gst_match(float(gst_match.get("avg_rel_gap", 0.0)))
+    else:
+        gst_score = score_gst_consistency(turnover_variance)
+
     components = {
         "banking_discipline": banking_score,
         "liquidity_ratios": score_liquidity(cr, wc_cycle, sector),
-        "gst_consistency": score_gst_consistency(turnover_variance),
+        "gst_consistency": gst_score,
         "leverage_quality": score_leverage(tol_tnw),
         "profitability": score_profitability(icr),
         "compliance_discipline": compliance,

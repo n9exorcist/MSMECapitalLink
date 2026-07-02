@@ -34,7 +34,7 @@ Legend: `[x]` done · `[~]` built but not wired · `[ ]` to build · **(Pn)** = 
 
 - [ ] **Null-handling fix** — blank CIBIL / bounces / DPD must stop scoring as good news _(in progress)_ (P1)
 - [ ] Recompute on debtor / creditor / loan changes (only `financials` triggers it today) (P1)
-- [ ] Fix GST component to spec — measure GSTR-1 vs 3B match, not bank-credits-vs-turnover (P1)
+- [x] GST component to spec — `gst_consistency` now scores the real GSTR-1↔3B taxable match (avg relative gap × 200, same slope), falling back to the bank-credits-vs-turnover proxy only when no period has both returns (P1)
 - [ ] Turnover-trend component (reads `monthly_sales`) (P3)
 - [ ] Receivables-ageing component (reads debtor ageing) (P3)
 - [ ] Bank-Readiness Score (reshuffled weights) (P1)

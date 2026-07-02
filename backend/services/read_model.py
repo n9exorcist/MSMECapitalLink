@@ -61,10 +61,11 @@ def build_read_model(db, msme_id: str) -> ReadModel:
     docs = float(fin.get("docs_ready_pct") or 80)
     compliance = float(fin.get("compliance_pct") or 90)
     cash_pos = score_service._latest_cash_position(db, msme_id)   # bank-statement evidence
+    gst_match = score_service._gst_match(db, msme_id)             # GSTR-1 ↔ 3B consistency
 
     r = calculate_composite_score(
         m, bounces=bounces, docs_ready=docs, compliance=compliance,
-        sector=sector, cash_position=cash_pos)
+        sector=sector, cash_position=cash_pos, gst_match=gst_match)
 
     # ── banker ratios, derived from the same metrics the engine used ──
     cl = m.current_liabilities or m.total_outside_liabilities

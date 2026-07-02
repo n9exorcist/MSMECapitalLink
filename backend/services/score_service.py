@@ -32,6 +32,29 @@ def _latest_cash_position(db, msme_id: str) -> Optional[dict]:
             .order("as_of_date", desc=True).limit(1).execute().data) or []
     return rows[0] if rows else None
 
+def _gst_match(db, msme_id: str) -> Optional[dict]:
+    # GSTR-1 ↔ GSTR-3B consistency evidence for the scoring engine. Groups gst_returns
+    # by period and, for each period that has BOTH returns, measures the relative gap
+    # in taxable value. Returns {matched, avg_rel_gap} or None when there's no period
+    # with both returns (engine then falls back to the turnover proxy).
+    try:
+        rows = (db.table("gst_returns").select("return_type,period,taxable_value")
+                .eq("msme_id", msme_id).execute().data) or []
+    except Exception:
+        return None
+    by_period: dict = {}
+    for r in rows:
+        by_period.setdefault(str(r.get("period")), {})[r.get("return_type")] = float(r.get("taxable_value") or 0)
+    gaps = []
+    for slot in by_period.values():
+        g1, g3 = slot.get("GSTR1"), slot.get("GSTR3B")
+        if g1 is not None and g3 is not None:
+            gaps.append(abs(g1 - g3) / max(g1, g3, 1.0))
+    if not gaps:
+        return None
+    return {"matched": len(gaps), "avg_rel_gap": sum(gaps) / len(gaps)}
+
+
 def _latest_bureau_pull(db, msme_id: str) -> Optional[dict]:
     # Most recent credit-bureau pull → authoritative CIBIL, off msme_financials.
     rows = (db.table("credit_bureau_pulls").select("*").eq("msme_id", msme_id)
